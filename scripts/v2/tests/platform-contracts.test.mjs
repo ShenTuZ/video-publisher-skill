@@ -1,0 +1,104 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const DIR = path.dirname(fileURLToPath(import.meta.url));
+const PLATFORM_DIR = path.join(DIR, "..", "platforms");
+
+test("Xiaohongshu topics start through the native editor command", () => {
+  const source = fs.readFileSync(path.join(PLATFORM_DIR, "xiaohongshu.mjs"), "utf8");
+  const start = source.indexOf("async function rebuildXhsTopics");
+  const end = source.indexOf("async function ensureXhsOriginal", start);
+  assert.ok(start >= 0 && end > start, "topic rebuild function must remain discoverable");
+  const topicFlow = source.slice(start, end);
+  const lifecycle = topicFlow.indexOf("activateXhsTopicLifecycle()");
+  const nativeStart = topicFlow.indexOf("topicButton.click()");
+  const explicitFocus = topicFlow.indexOf("editor.focus()", nativeStart);
+  const bareQuery = topicFlow.indexOf("await cdp('Input.insertText', { text: queryTag })", explicitFocus);
+  assert.ok(lifecycle >= 0 && lifecycle < nativeStart, "the hidden post-crash page must be activated before topic input");
+  assert.match(source, /Page\.setWebLifecycleState', \{ state: 'active' \}/);
+  assert.ok(nativeStart >= 0, "the platform topic command must insert the leading hash");
+  assert.ok(explicitFocus > nativeStart, "the editor must be refocused after the native command");
+  assert.ok(bareQuery > explicitFocus, "only the bare topic query may be inserted after refocus");
+  assert.doesNotMatch(topicFlow, /Input\.insertText', \{ text: `#\$\{queryTag\}` \}/);
+  assert.match(topicFlow, /rebuildAttempt<=3/, "candidate failures must retry the whole exact topic set with a finite bound");
+  assert.match(topicFlow, /attempt < 12/, "each native suggestion request must get a bounded high-load wait window");
+});
+
+test("Douyin preserves committed topic entities while retrying a failed tail query", () => {
+  const source = fs.readFileSync(path.join(PLATFORM_DIR, "douyin.mjs"), "utf8");
+  const cleanupStart = source.indexOf("async function removeDouyinTrailingTopicQuery");
+  const cleanupEnd = source.indexOf("async function addDouyinTopic", cleanupStart);
+  const addEnd = source.indexOf("async function recoverDouyinTopicPrefix", cleanupEnd);
+  assert.ok(cleanupStart >= 0 && cleanupEnd > cleanupStart && addEnd > cleanupEnd);
+  const cleanup = source.slice(cleanupStart, cleanupEnd);
+  const add = source.slice(cleanupEnd, addEnd);
+  assert.match(cleanup, /expected\.startsWith\(initial\)/, "cleanup must prove the visible tail belongs to the missing topic");
+  assert.match(cleanup, /entitiesUnchanged/, "cleanup must verify existing topic entities were preserved");
+  assert.match(source, /value\.startsWith\(expectedDescription\)/, "the first topic query must be isolated from a shared description text node");
+  assert.match(add, /attempt<=3/, "suggestion lookup must use a finite retry bound");
+  assert.match(add, /removeDouyinTrailingTopicQuery\(queryTag,committedBefore\)/, "a failed lookup must remove only its own plain query");
+});
+
+test("Ego task-space selection rejects a recycled id with another name", () => {
+  const source = fs.readFileSync(path.join(DIR, "..", "ego", "core.mjs"), "utf8");
+  const start = source.indexOf("async function selectTaskSpace");
+  const end = source.indexOf("async function selectPlatformTab", start);
+  assert.ok(start >= 0 && end > start, "task-space selector must remain discoverable");
+  const selection = source.slice(start, end);
+  assert.match(selection, /activeTaskSpace\.name !== taskName/);
+  assert.match(selection, /reason: 'task_space_identity_mismatch'/);
+  assert.match(selection, /activeTaskSpace = await useOrCreateTaskSpace\(taskName\)/);
+});
+
+test("WeChat per-video controls are verified without touching location or collection", () => {
+  const source = fs.readFileSync(path.join(PLATFORM_DIR, "wechat-channels.mjs"), "utf8");
+  for (const name of [
+    "startWechatUpload",
+    "prepareWechatChannels",
+    "publishWechatChannels",
+    "waitWechatUploadOnly",
+    "prefillWechatChannels",
+    "setWechatTextFields",
+    "setWechatShortTitle",
+    "ensureWechatNoActivity",
+    "ensureWechatSchedule",
+    "ensureWechatAiLabel",
+    "ensureWechatProductLink",
+  ]) {
+    assert.match(source, new RegExp(`async function ${name}\\(`), `${name} must remain an idempotent adapter step`);
+  }
+  assert.match(source, /locationPreserved:state\.locationText/);
+  assert.match(source, /collectionUntouched:state\.collectionText/);
+  assert.doesNotMatch(source, /ensureWechatLocation|setWechatLocation|ensureWechatCollection|setWechatCollection/);
+  assert.match(source, /wechat product link option unavailable for this page\/account/);
+  assert.match(source, /wechat first selectable product missing/);
+  assert.match(source, /停业中\|不可添加\|已失效\|暂无商品/);
+  assert.match(source, /选择需要添加的商品/);
+  assert.match(source, /\^添加\\\(\\d\+\\\)\$/);
+  assert.match(source, /选择商品出现时机/);
+  assert.match(source, /phase==='inject'/);
+  assert.match(source, /phase==='prepare'/);
+  assert.match(source, /phase==='publish'/);
+  assert.match(source, /phase==='prefill'/);
+  assert.match(source, /phase==='wait_upload'/);
+  assert.match(source, /stableSamples>=3/, "upload completion must use three lightweight consecutive probes");
+  assert.match(source, /await wait\(1\)/, "upload completion probes must avoid the former five-second polling interval");
+  assert.match(source, /input\.select\(\)/, "scheduled time must use the platform's real time sub-input");
+  assert.match(source, /await typeText\(expectedTime\)/, "scheduled time must be typed through Ego input");
+  assert.match(source, /label:'commit scheduled time'/, "scheduled time must close the picker and verify the committed main value");
+
+  const mutation = source.slice(source.indexOf("async function mutateWechatChannels"));
+  assert.match(source, /async function ensureWechatOriginalPolicy\(/);
+  assert.match(source, /wechatOriginal\?\(state\.originalFound&&state\.originalEnabled/);
+  assert.match(source, /label:wechatOriginal\?'enable original declaration':'disable original declaration'/);
+  assert.match(source, /authorizeFinalPublishGuard\(\)/, "final publish must pass through the READY-gated guard authorization");
+  assert.match(source, /publishReceipt:\{confirmed:true/, "final publish must return explicit success evidence");
+
+  const order = ["actions.textFields", "actions.activity", "actions.schedule", "actions.aiLabel", "actions.productLink"]
+    .map(token => mutation.indexOf(token));
+  assert.ok(order.every(index => index >= 0));
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), "WeChat mutations must follow the confirmed field order");
+});

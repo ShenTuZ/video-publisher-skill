@@ -1,0 +1,14 @@
+# Personal publishing inputs and generated job state
+video-package-*.json
+.video-publisher/
+v2-jobs/
+state/
+
+# Local account configuration and credentials
+config.json
+.env
+.env.*
+
+# OS/editor noise
+.DS_Store
+*.swp
