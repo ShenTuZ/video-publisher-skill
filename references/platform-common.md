@@ -27,7 +27,7 @@ Use `scripts/run-fast-platforms.sh`, which invokes `scripts/v2/publisher.mjs`.
 
 Only one input controller may run while browser uploads continue. Injection runners must exit before overlap prefill begins; upload waiters start only after prefill ends and remain read-only. A platform without split `inject`/`wait_upload` support stays on the legacy combined upload path.
 
-The single-platform WeChat optimization is the bounded exception: one `prepare` runner owns that one task space continuously through inspect, injection, batch prefill, completion wait, and repair. It is used only when WeChat is the sole selected platform. It must still be followed by a separate `verify` runner. Multi-platform jobs keep the six-step scheduler above.
+The single-platform Xiaohongshu/WeChat optimization is the bounded exception: one `prepare` runner owns that one task space continuously through inspect, injection, overlap prefill, completion wait, and repair. It is used only when one of those fast platforms is the sole selected platform. It must still be followed by a separate `verify` runner. Multi-platform jobs keep the six-step scheduler above.
 
 The browser channel is shared across task spaces. If any runner reports `INPUT_CHANNEL_BROKEN`, treat it as a phase-wide circuit breaker: wait for all already-started parallel runners, skip every remaining upload/mutate action, and run only final read-only verification. An ordinary same-job retry after Ego restarts is the recovery path.
 
@@ -43,7 +43,7 @@ Persist the exact task-space name alongside its numeric id. After an Ego crash, 
 
 ```text
 inspect: read-only page observation
-prepare: persistent single-platform WeChat preparation, followed by separate verify
+prepare: persistent single-platform Xiaohongshu/WeChat preparation, followed by separate verify
 inject: file injection plus bounded upload-start proof
 prefill: serial metadata/settings work while background upload continues
 wait_upload: read-only upload completion wait

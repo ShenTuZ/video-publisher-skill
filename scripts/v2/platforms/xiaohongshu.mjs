@@ -135,32 +135,31 @@ async function inspectXiaohongshu() {
   };
 }
 
+async function getXhsUploadProbe(){return await js(String.raw`((expectedName) => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const text=compact(document.body.innerText||'');const filenameVisible=text.includes(expectedName)||text.includes(String(expectedName).replace(/\.[^.]+$/,''));const uploading=/视频上传中|取消上传|剩余时间|当前速度|处理中|\b\d{1,3}%\b/.test(text);const failed=/上传失败|网络错误|重新上传失败/.test(text);const uploaded=filenameVisible&&/重新上传|上传完成|检测为高清视频/.test(text)&&!uploading&&!failed;const input=[...document.querySelectorAll('input[type=file]')].find(el=>/video|\.(mp4|mov|flv|f4v|mkv|rmvb?|m4v|mpg|mpeg|ts)/i.test(el.accept||''));return {filenameVisible,uploading,failed,uploaded,completed:uploaded&&!uploading&&!failed,hasInput:Boolean(input),sample:text.slice(0,1600)}})(${JSON.stringify(xhsVideoName)})`)}
+
 async function waitXiaohongshuUploadCompletion(mode) {
-  let stableSince = 0;
-  for (let index = 0; index < 180; index += 1) {
-    const current = await inspectXiaohongshu();
-    const uploaded = current.gates.video.evidence?.uploaded || current.gates.video.ok;
-    const uploading = current.gates.video.evidence?.uploading === true;
-    if (uploaded && !uploading) {
-      if (!stableSince) stableSince = Date.now();
-      if (Date.now() - stableSince >= 10000) return { ...current, actions: { upload: { mode } } };
-    } else {
-      stableSince = 0;
-    }
-    await wait(5);
+  let stableSamples=0;
+  for(let index=0;index<900;index+=1){
+    const probe=await getXhsUploadProbe();
+    if(probe.failed){const after=await inspectXiaohongshu();return {...after,actions:{upload:{mode}},blocker:typedBlocker('PLATFORM_REJECTED_ASSET','小红书明确拒绝了上传文件',{retryable:true,evidence:probe})}}
+    stableSamples=probe.completed?stableSamples+1:0;
+    if(stableSamples>=3){const current=await inspectXiaohongshu();if(current.gates.video.ok)return {...current,actions:{upload:{mode}}};stableSamples=0}
+    await wait(1);
   }
-  const after = await inspectXiaohongshu();
+  const after=await inspectXiaohongshu();
   return { ...after, actions: { upload: { mode } }, blocker: typedBlocker('UPLOAD_STALLED', '小红书视频没有在等待窗口内稳定完成', { retryable: true, evidence: after.gates.video.evidence }) };
 }
 
-async function uploadXiaohongshu() {
+async function waitXhsUploadStart(){for(let attempt=0;attempt<30;attempt+=1){const probe=await getXhsUploadProbe();if(probe.uploading||probe.completed)return {ok:true,probe};if(probe.failed)return {ok:false,reason:'xiaohongshu upload failed after injection',probe};await wait(1)}return {ok:false,reason:'xiaohongshu upload did not start after file injection',probe:await getXhsUploadProbe()}}
+
+async function startXhsUpload() {
   const before = await inspectXiaohongshu();
   if (before.gates.video.ok) return { ...before, actions: { upload: { mode: 'already_ready' } } };
   if (!before.gates.draftIdentity.ok) {
     return { ...before, blocker: typedBlocker('FOREIGN_DRAFT', '小红书当前编辑器属于其他视频草稿', { evidence: before.gates.draftIdentity.evidence }) };
   }
   if (before.gates.video.evidence?.uploading === true) {
-    return await waitXiaohongshuUploadCompletion('resume_existing');
+    return { ...before, actions: { upload: { mode: 'resume_existing' } } };
   }
   const exposed = await js(String.raw`(() => {
     const videoLike = value => /video|\.(mp4|mov|flv|f4v|mkv|rmvb?|m4v|mpg|mpeg|ts)\b/i.test(value || '')
@@ -175,8 +174,15 @@ async function uploadXiaohongshu() {
   } catch (error) {
     return { ...before, blocker: typedBlocker('UPLOAD_NOT_STARTED', `小红书文件注入失败: ${String(error?.message || error)}`, { retryable: true }) };
   }
-  return await waitXiaohongshuUploadCompletion('injected');
+  const started=await waitXhsUploadStart();
+  if(!started.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('UPLOAD_NOT_STARTED',started.reason,{retryable:true,evidence:started.probe})};
+  const current=await inspectXiaohongshu();
+  return {...current,actions:{upload:{mode:'injected'}}};
 }
+
+async function waitXhsUploadOnly(){const before=await inspectXiaohongshu();if(before.gates.video.ok)return {...before,actions:{upload:{mode:'already_ready'}}};if(!before.gates.video.evidence?.uploading)return {...before,blocker:typedBlocker('UPLOAD_NOT_STARTED','小红书没有可等待的上传任务',{retryable:true,evidence:before.gates.video.evidence})};return await waitXiaohongshuUploadCompletion('resume_existing')}
+
+async function uploadXiaohongshu(){const started=await startXhsUpload();if(started.blocker||started.gates.video.ok)return started;return await waitXhsUploadOnly()}
 
 async function activateXhsTopicLifecycle() {
   await cdp('Page.bringToFront', {}).catch(() => {});
@@ -400,6 +406,22 @@ async function uploadXhsCover() {
   return { ok: true, receipt: { assetPath: xhsCoverPath, ratio: '3:4', beforeUrl: before, afterUrl: url } };
 }
 
+async function waitXhsFormReady(){for(let attempt=0;attempt<60;attempt+=1){const ready=await js(String.raw`(() => Boolean(document.querySelector('input[placeholder*="填写标题"]')&&document.querySelector('[contenteditable="true"],[contenteditable=""]')&&document.querySelector('.publish-page-content-setting-content')))()`);if(ready)return {ok:true,attempt};await wait(.5)}return {ok:false,reason:'xiaohongshu form did not become ready during upload'}}
+
+async function prefillXiaohongshu(){
+  const form=await waitXhsFormReady();if(!form.ok){const state=await inspectXiaohongshu();return {...state,blocker:typedBlocker('RISK_CONTROL',form.reason,{retryable:true})}}
+  const before=await inspectXiaohongshu();if(!before.gates.authenticated.ok)return {...before,blocker:typedBlocker('AUTH_REQUIRED','小红书登录态无效或遇到安全验证',{requiresUser:true,evidence:before.gates.authenticated.evidence})};if(!before.gates.draftIdentity.ok)return {...before,blocker:typedBlocker('FOREIGN_DRAFT','小红书当前编辑器属于其他视频草稿',{evidence:before.gates.draftIdentity.evidence})};if(!before.gates.noBlockingDialog.ok)return {...before,blocker:typedBlocker('STATE_AMBIGUOUS','小红书预填前存在阻塞弹窗',{retryable:true,evidence:before.gates.noBlockingDialog.evidence})};
+  const actions={};if(!before.gates.title.ok){actions.title=await setNativeInputValue('input[placeholder*="填写标题"]',xhsTitle);if(!actions.title.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED','小红书标题没有写入',{evidence:actions.title})}}
+  const current=await inspectXiaohongshu();if(!current.gates.description.ok||!current.gates.tags.ok){actions.content=await rebuildXhsTopics();if(!actions.content.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.content.reason,{evidence:actions.content})}}
+  actions.original=await ensureXhsOriginalPolicy();if(!actions.original.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.original.reason,{evidence:actions.original})};
+  actions.pkCover=await ensureXhsPkCoverOff();if(!actions.pkCover.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.pkCover.reason,{evidence:actions.pkCover})};
+  actions.contentType=await ensureXhsContentType();if(!actions.contentType.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.contentType.reason,{evidence:actions.contentType})};
+  actions.defaults=await ensureXhsDefaultExtras();if(!actions.defaults.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('STATE_AMBIGUOUS',actions.defaults.reason,{evidence:actions.defaults})};
+  actions.visibility=await ensureXhsVisibility();if(!actions.visibility.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.visibility.reason,{evidence:actions.visibility})};
+  actions.schedule=await ensureXhsSchedule();if(!actions.schedule.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.schedule.reason,{evidence:actions.schedule})};
+  return {...(await inspectXiaohongshu()),actions};
+}
+
 async function mutateXiaohongshu() {
   const before = await inspectXiaohongshu();
   if (!before.gates.video.ok) return { ...before, blocker: typedBlocker('STATE_AMBIGUOUS', '小红书没有可修复的已上传视频') };
@@ -431,6 +453,8 @@ async function mutateXiaohongshu() {
   return { ...after, actions, receipts };
 }
 
+async function prepareXiaohongshu(){const actions={};actions.uploadStart=await startXhsUpload();if(actions.uploadStart.blocker)return actions.uploadStart;actions.prefill=await prefillXiaohongshu();if(actions.prefill.blocker)return actions.prefill;if(!actions.prefill.gates.video.ok){actions.uploadWait=await waitXhsUploadOnly();if(actions.uploadWait.blocker)return actions.uploadWait}const repaired=await mutateXiaohongshu();return {...repaired,actions:{...actions,...(repaired.actions||{})}}}
+
 async function probeXhsPublishResult(){return await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden'};const signals=[...document.querySelectorAll('div,span,p,h1,h2,h3')].filter(visible).map(el=>compact(el.innerText||el.textContent||'')).filter(text=>/^(发布成功|发布成功啦|笔记发布成功|提交成功|已发布|审核中)$/.test(text));const errors=[...document.querySelectorAll('div,span,p')].filter(visible).map(el=>compact(el.innerText||el.textContent||'')).filter(text=>/发布失败|提交失败|网络错误/.test(text)).slice(0,5);const dialogs=[...document.querySelectorAll('.d-modal,[role="dialog"]')].filter(visible).map(el=>({text:compact(el.innerText||el.textContent||'').slice(0,800),buttons:[...el.querySelectorAll('button')].filter(visible).map(button=>{const r=button.getBoundingClientRect();return {text:compact(button.innerText||button.textContent||''),disabled:Boolean(button.disabled),x:r.left+r.width/2,y:r.top+r.height/2}})}));const leftEditor=!/\/publish\/publish/.test(location.pathname);return {confirmed:signals.length>0||leftEditor,signals:[...new Set(signals)],errors,dialogs,url:location.href,leftEditor}})()`)}
 
 async function publishXiaohongshu(){
@@ -444,6 +468,10 @@ async function publishXiaohongshu(){
 
 async function runPlatformPhase() {
   if (phase === 'inspect' || phase === 'verify') return await inspectXiaohongshu();
+  if (phase === 'prepare') return await prepareXiaohongshu();
+  if (phase === 'inject') return await startXhsUpload();
+  if (phase === 'prefill') return await prefillXiaohongshu();
+  if (phase === 'wait_upload') return await waitXhsUploadOnly();
   if (phase === 'upload') return await uploadXiaohongshu();
   if (phase === 'mutate') return await mutateXiaohongshu();
   if (phase === 'publish') return await publishXiaohongshu();

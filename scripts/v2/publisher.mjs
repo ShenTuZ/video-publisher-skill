@@ -21,7 +21,7 @@ import { runPool, SerialQueue } from "./lib/scheduler.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.join(os.homedir(), ".video-publisher", "v2-jobs");
-const FAST_OVERLAP_PLATFORMS = new Set(["wechat_channels"]);
+const FAST_OVERLAP_PLATFORMS = new Set(["xiaohongshu", "wechat_channels"]);
 const AUTO_PUBLISH_PLATFORMS = new Set(["xiaohongshu", "wechat_channels"]);
 const validators = { xiaohongshu: validateXiaohongshuPackage, douyin: validateDouyinPackage, wechat_channels: validateWechatChannelsPackage };
 
@@ -254,25 +254,26 @@ async function main() {
     return { observation, verdict };
   }
 
-  const persistentWechatOnly = !args.inspectOnly
+  const persistentSingleFastPlatform = !args.inspectOnly
     && args.platforms.length === 1
     && runnablePlatforms.length === 1
-    && runnablePlatforms[0] === "wechat_channels";
+    && FAST_OVERLAP_PLATFORMS.has(runnablePlatforms[0]);
 
-  if (persistentWechatOnly) {
-    console.error("[video-publisher-v2] persistent WeChat prepare: inspect -> inject -> batch prefill -> upload wait -> repair");
-    await invoke("wechat_channels", "prepare");
-    if (state.platforms.wechat_channels.status !== "blocked_user") {
-      console.error("[video-publisher-v2] independent WeChat verify");
-      await invoke("wechat_channels", "verify");
+  if (persistentSingleFastPlatform) {
+    const platform=runnablePlatforms[0];
+    console.error(`[video-publisher-v2] persistent ${platform} prepare: inspect -> inject -> overlap prefill -> upload wait -> repair`);
+    await invoke(platform, "prepare");
+    if (state.platforms[platform].status !== "blocked_user") {
+      console.error(`[video-publisher-v2] independent ${platform} verify`);
+      await invoke(platform, "verify");
     }
     let complete = args.platforms.every(platform => state.platforms[platform].verdict?.ready === true);
     if (complete && args.autoPublishOnReady) {
       console.error("[video-publisher-v2] READY verified; automatic final publish authorized by user configuration");
-      await invoke("wechat_channels", "publish");
-      complete = state.platforms.wechat_channels.status === "published";
+      await invoke(platform, "publish");
+      complete = state.platforms[platform].status === "published";
     }
-    state.status = state.platforms.wechat_channels.status === "published" ? "published" : (complete ? "ready" : (state.platforms.wechat_channels.status === "blocked_user" ? "paused_user" : "blocked"));
+    state.status = state.platforms[platform].status === "published" ? "published" : (complete ? "ready" : (state.platforms[platform].status === "blocked_user" ? "paused_user" : "blocked"));
     await store.save(); await store.close();
     console.log(JSON.stringify(summary(state, args.platforms, store.statePath), null, 2));
     if (!complete) process.exitCode = 10;

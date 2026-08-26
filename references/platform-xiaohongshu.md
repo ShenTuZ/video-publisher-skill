@@ -20,7 +20,9 @@ READY-triggered final publish when authorized
 
 Use the confirmed video file. Reuse an uploaded editor only when the filename or expected title identifies this package. A different active draft is a blocker.
 
-Do not mutate metadata until the upload phase has fully completed and every selected platform upload runner has exited.
+Use split `inject`, `prefill`, and `wait_upload` phases. After file injection proves visible upload progress, fill title, description, real topics, declarations, visibility, and timing while the browser transfer continues. `wait_upload` uses lightweight one-second probes and three consecutive completion samples. Post-upload `mutate` remains an idempotent repair and cover step.
+
+When Xiaohongshu is the only selected platform, one persistent `prepare` runner performs those logical phases in the same Ego process, followed by a separate `verify` process. Never reinject an active matching upload.
 
 ## Topic Entities
 
@@ -100,3 +102,5 @@ visible enabled `发布笔记` final button; final publish not clicked
 This path passed real draft runs on 2026-07-14 and 2026-07-15. The visible-tab polling path was fault-tested by discarding the receipt and re-uploading the same 3:4 asset. Later 731 MB and 533 MB runs survived orchestrator termination during upload without reinjection, and the 533 MB run verified whitespace-normalized topic lookup plus three no-op full reruns. Real Ego Lite crash/restart and sustained-load runs reproduced both the cold-page topic-decoration failure and an empty candidate panel. A mutation-stage crash finally proved the persistent failure was hidden lifecycle throttling: activating and focusing that exact failed page made its next bounded whole-set rebuild commit four entities on attempt one. The 3:4 receipt and four-platform `READY` state were restored, followed by three full no-op reruns.
 
 On 2026-08-26, a real 435 MB video run verified the current interface defaults and repaired two new regressions: `unchecked` must not be substring-matched as `checked`, and description text needs real paragraph breaks before native topic entry. The maintained adapter then verified exact description, four real topics, `笔记含AI合成内容`, originality/PK/schedule off, platform cover, no optional components or activities, and public visibility. A no-op orchestrator rerun performed no upload or mutation and returned READY. The authorized publish phase then clicked only the bottom semantic `发布` control, received `发布成功`, and verified the `/publish/success` URL.
+
+A subsequent real 201.6 MB 1080×1920 run accepted the persistent overlap path end to end in about 36.7 seconds. `uploadStart` recorded `mode: injected` at 0%; exact title, concise description, four native topic entities, non-AI/no-original defaults, and every optional-setting gate were already verified while upload remained at 36% with roughly 19 seconds left. Lightweight completion wait, independent verify, and automatic publish then returned `发布成功` and the success URL. No reinjection or post-upload metadata repair occurred.

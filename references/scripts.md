@@ -97,7 +97,7 @@ node scripts/v2/run-platform.mjs \
   [numeric-task-space-id]
 ```
 
-Direct Xiaohongshu `mutate` requires originality confirmation only when the package explicitly sets `xhsOriginal: true`. WeChat `prepare` and `mutate` likewise require it only when `wechatOriginal: true`; both default-false flows need no rights flag. `inspect`, `inject`, `prefill`, `wait_upload`, `upload`, and `verify` remain available without either signal. Use `prepare` only for bounded WeChat-only diagnosis; the production orchestrator selects it automatically.
+Direct Xiaohongshu `prepare`/`mutate` requires originality confirmation only when the package explicitly sets `xhsOriginal: true`. WeChat `prepare` and `mutate` likewise require it only when `wechatOriginal: true`; both default-false flows need no rights flag. `inspect`, `inject`, `prefill`, `wait_upload`, `upload`, and `verify` remain available without either signal. Use `prepare` only for bounded Xiaohongshu-only or WeChat-only diagnosis; the production orchestrator selects it automatically.
 
 Direct `publish` requires `--confirm-final-publish` and is intended for the production orchestrator after READY. The production entry accepts `--publish-on-ready` to enable it for one run and `--stop-at-ready` to override a standing personal auto-publish policy.
 

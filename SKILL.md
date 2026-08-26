@@ -54,7 +54,7 @@ final verification: parallel, default 4
 
 Fast adapters split upload into `inject` and `wait_upload`. The injection runner exits as soon as the browser proves that upload started; one serial UI controller then fills metadata while the browser upload continues, followed by parallel read-only waiters. Never run two input controllers at once or reinject an active upload. If any runner returns `INPUT_CHANNEL_BROKEN`, wait for siblings, skip remaining mutation, and run only final read-only verification. Resume with the ordinary same-job command after Ego restarts.
 
-When WeChat Channels is the only selected platform, use its persistent `prepare` runner. One Ego process inspects, injects, batch-prefills, waits, and repairs the draft; a separate read-only `verify` runner must still re-read every gate. Multi-platform jobs retain the split phase scheduler so WeChat never blocks other platform uploads.
+When Xiaohongshu or WeChat Channels is the only selected platform, use its persistent `prepare` runner. One Ego process inspects, injects, prefills while upload continues, waits, and repairs the draft; a separate read-only `verify` runner must still re-read every gate. Multi-platform jobs retain the split phase scheduler so one platform never blocks the others.
 
 Persist the exact task-space name with its numeric id. A recycled id whose live name differs belongs to another job. Accepted cover receipts use atomic fingerprint- and task-space-bound checkpoints. State keeps a one-generation atomic backup; a corrupt primary may recover only from a fingerprint-matching backup and still requires fresh verification.
 
@@ -78,7 +78,7 @@ The platform runner exposes only:
 
 ```text
 inspect: read page truth without mutation
-prepare: single-platform WeChat persistent inspect/inject/prefill/wait/repair
+prepare: persistent single-platform Xiaohongshu/WeChat inspect/inject/prefill/wait/repair
 inject: inject the file and exit after proving upload started
 prefill: serially fill metadata while the browser upload continues
 wait_upload: read-only wait for stable upload completion
@@ -149,7 +149,7 @@ Generate a meaningful WeChat short-title summary of at most 10 Unicode character
 3. Build each platform package from its fixed defaults, apply only the user's explicit changes, then confirm the package and selected platforms.
 4. Validate supplied cover assets and every platform package.
 5. Run the production orchestrator.
-6. For WeChat-only work, run one persistent prepare session; otherwise inspect in parallel, inject missing files, and prove each fast upload has started.
+6. For Xiaohongshu-only or WeChat-only work, run one persistent prepare session; otherwise inspect in parallel, inject missing files, and prove each fast upload has started.
 7. While browser uploads continue, fill metadata through one serial UI controller.
 8. Wait for upload completion in parallel without further input, then repair remaining post-upload fields and covers.
 9. Run independent parallel verification.

@@ -226,7 +226,7 @@ test("single-platform WeChat auto-publishes only after independent READY verific
   assert.equal(summary.platforms.wechat_channels.published,true);
 });
 
-test("Xiaohongshu auto-publishes only after mutation and independent READY verification", async () => {
+test("Xiaohongshu auto-publishes only after persistent prepare and independent READY verification", async () => {
   const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-xhs-auto-publish-test-"));
   const videoPath=path.join(root,"sample-video.mp4");
   const packagePath=path.join(root,"package.json");
@@ -238,7 +238,7 @@ test("Xiaohongshu auto-publishes only after mutation and independent READY verif
   const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"xhs-auto-publish","xiaohongshu","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
   assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
   const phases=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line)).filter(item=>item.event==="start").map(item=>item.phase);
-  assert.deepEqual(phases,["inspect","upload","mutate","verify","publish"]);
+  assert.deepEqual(phases,["prepare","verify","publish"]);
   const summary=JSON.parse(result.stdout);
   assert.equal(summary.status,"published");
   assert.equal(summary.platforms.xiaohongshu.published,true);
