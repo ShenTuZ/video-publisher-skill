@@ -414,11 +414,11 @@ async function prefillXiaohongshu(){
   const current=await inspectXiaohongshu();if(!current.gates.description.ok||!current.gates.tags.ok){actions.content=await rebuildXhsTopics();if(!actions.content.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.content.reason,{evidence:actions.content})}}
   const formState=actions.content?.verifiedGates?{gates:actions.content.verifiedGates}:current;
   actions.original=await ensureXhsOriginalPolicy(formState.gates.original);if(!actions.original.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.original.reason,{evidence:actions.original})};
-  actions.pkCover=await ensureXhsPkCoverOff(formState.gates.pkCover);if(!actions.pkCover.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.pkCover.reason,{evidence:actions.pkCover})};
+  actions.pkCover=publishProfile==='fast'?{ok:true,skipped:true}:await ensureXhsPkCoverOff(formState.gates.pkCover);if(!actions.pkCover.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.pkCover.reason,{evidence:actions.pkCover})};
   actions.contentType=await ensureXhsContentType(formState.gates.contentType);if(!actions.contentType.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.contentType.reason,{evidence:actions.contentType})};
-  actions.defaults=await ensureXhsDefaultExtras(formState.gates.defaults);if(!actions.defaults.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('STATE_AMBIGUOUS',actions.defaults.reason,{evidence:actions.defaults})};
-  actions.visibility=await ensureXhsVisibility(formState.gates.visibility);if(!actions.visibility.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.visibility.reason,{evidence:actions.visibility})};
-  actions.schedule=await ensureXhsSchedule(formState.gates.schedule);if(!actions.schedule.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.schedule.reason,{evidence:actions.schedule})};
+  actions.defaults=publishProfile==='fast'?{ok:true,skipped:true}:await ensureXhsDefaultExtras(formState.gates.defaults);if(!actions.defaults.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('STATE_AMBIGUOUS',actions.defaults.reason,{evidence:actions.defaults})};
+  actions.visibility=publishProfile==='fast'?{ok:true,skipped:true}:await ensureXhsVisibility(formState.gates.visibility);if(!actions.visibility.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.visibility.reason,{evidence:actions.visibility})};
+  actions.schedule=publishProfile==='fast'&&xhsPublish.mode==='immediate'?{ok:true,skipped:true}:await ensureXhsSchedule(formState.gates.schedule);if(!actions.schedule.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.schedule.reason,{evidence:actions.schedule})};
   return {...(await inspectXiaohongshu()),actions};
 }
 
@@ -433,15 +433,15 @@ async function mutateXiaohongshu() {
   const formState=actions.content?.verifiedGates?{gates:actions.content.verifiedGates}:afterTitle;
   actions.original = await ensureXhsOriginalPolicy(formState.gates.original);
   if (!actions.original.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.original.reason, { evidence: actions.original }) };
-  actions.pkCover = await ensureXhsPkCoverOff(formState.gates.pkCover);
+  actions.pkCover = publishProfile==='fast'?{ok:true,skipped:true}:await ensureXhsPkCoverOff(formState.gates.pkCover);
   if (!actions.pkCover.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.pkCover.reason, { evidence: actions.pkCover }) };
   actions.contentType = await ensureXhsContentType(formState.gates.contentType);
   if (!actions.contentType.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.contentType.reason, { evidence: actions.contentType }) };
-  actions.defaults = await ensureXhsDefaultExtras(formState.gates.defaults);
+  actions.defaults = publishProfile==='fast'?{ok:true,skipped:true}:await ensureXhsDefaultExtras(formState.gates.defaults);
   if (!actions.defaults.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('STATE_AMBIGUOUS', actions.defaults.reason, { evidence: actions.defaults }) };
-  actions.visibility = await ensureXhsVisibility(formState.gates.visibility);
+  actions.visibility = publishProfile==='fast'?{ok:true,skipped:true}:await ensureXhsVisibility(formState.gates.visibility);
   if (!actions.visibility.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.visibility.reason, { evidence: actions.visibility }) };
-  actions.schedule = await ensureXhsSchedule(formState.gates.schedule);
+  actions.schedule = publishProfile==='fast'&&xhsPublish.mode==='immediate'?{ok:true,skipped:true}:await ensureXhsSchedule(formState.gates.schedule);
   if (!actions.schedule.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.schedule.reason, { evidence: actions.schedule }) };
   actions.cover = await uploadXhsCover();
   if (!actions.cover.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('PLATFORM_REJECTED_ASSET', actions.cover.reason, { retryable: true, evidence: actions.cover }) };

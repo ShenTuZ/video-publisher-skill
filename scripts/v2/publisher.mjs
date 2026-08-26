@@ -326,8 +326,9 @@ async function main() {
   }
 
   const injectTargets = inputChannelBroken ? [] : activePlatforms().filter(platform => FAST_OVERLAP_PLATFORMS.has(platform) && state.platforms[platform].status === "needs_upload");
-  console.error(`[video-publisher-v2] fast inject parallel=${args.uploadConcurrency}: ${injectTargets.join(",") || "none"}`);
-  await runPool(injectTargets, args.uploadConcurrency, platform => invoke(platform, "inject"));
+  const injectConcurrency = args.publishProfile === "fast" ? 1 : args.uploadConcurrency;
+  console.error(`[video-publisher-v2] fast inject parallel=${injectConcurrency}: ${injectTargets.join(",") || "none"}`);
+  await runPool(injectTargets, injectConcurrency, platform => invoke(platform, "inject"));
 
   const overlapPrefillTargets = inputChannelBroken ? [] : injectTargets.filter(platform => state.platforms[platform].status === "needs_upload");
   console.error(`[video-publisher-v2] overlap prefill UI serial: ${overlapPrefillTargets.join(",") || "none"}${inputChannelBroken ? " (input channel broken)" : ""}`);

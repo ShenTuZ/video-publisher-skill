@@ -83,8 +83,8 @@ async function startWechatUpload(){
   if(before.gates.video.ok)return {...before,actions:{upload:{mode:'already_ready'}}};
   if(!before.gates.draftIdentity.ok)return {...before,blocker:typedBlocker('FOREIGN_DRAFT','视频号当前编辑器属于其他视频草稿',{evidence:before.gates.draftIdentity.evidence})};
   if(before.gates.video.evidence?.uploading)return {...before,actions:{upload:{mode:'resume_existing'}}};
-  let ready=await waitWechatSdkReady(30);
-  if(!ready.ok){await gotoAndWait(PLATFORM_URLS.wechat_channels,{timeout:45,settle:2});ready=await waitWechatSdkReady(90)}
+  let ready=await waitWechatSdkReady(publishProfile==='fast'?8:30);
+  if(!ready.ok){await gotoAndWait(PLATFORM_URLS.wechat_channels,{timeout:45,settle:2});ready=await waitWechatSdkReady(publishProfile==='fast'?20:90)}
   if(!ready.ok){const after=await inspectWechatChannels();return {...after,blocker:typedBlocker('RISK_CONTROL','视频号 Wujie 上传 SDK 没有在激活页面生命周期后完成初始化',{retryable:true,evidence:ready.probe})}}
   const injected=await injectWechatVideo();
   if(!injected.ok)return {...before,blocker:typedBlocker('UPLOAD_NOT_STARTED',injected.reason,{retryable:true})};
@@ -184,10 +184,10 @@ async function ensureWechatOriginalPolicy(currentGate=null){
 }
 
 async function prefillWechatChannels(){
-  let ready=await waitWechatSdkReady(30);
+  let ready=await waitWechatSdkReady(publishProfile==='fast'?8:30);
   if(!ready.ok){
     await gotoAndWait(PLATFORM_URLS.wechat_channels,{timeout:45,settle:2});
-    ready=await waitWechatSdkReady(90);
+    ready=await waitWechatSdkReady(publishProfile==='fast'?20:90);
   }
   if(!ready.ok){
     const unavailable=await inspectWechatChannels();
@@ -200,9 +200,9 @@ async function prefillWechatChannels(){
   if(!before.gates.noBlockingDialog.ok&&!productDialogActive)return {...before,blocker:typedBlocker('STATE_AMBIGUOUS','视频号预填前存在阻塞弹窗',{retryable:true,evidence:before.gates.noBlockingDialog.evidence})};
   const actions={};
   if(!before.gates.description.ok||!before.gates.shortTitle.ok){actions.textFields=await setWechatTextFields({description:!before.gates.description.ok,shortTitle:!before.gates.shortTitle.ok});if(!actions.textFields.ok)return {...(await inspectWechatChannels()),blocker:typedBlocker('ACTION_FAILED',actions.textFields.reason||'视频号描述或短标题没有写入',{evidence:actions.textFields})}}
-  actions.activity=await ensureWechatNoActivity(before.gates.activity);
+  actions.activity=publishProfile==='fast'?{ok:true,skipped:true}:await ensureWechatNoActivity(before.gates.activity);
   if(!actions.activity.ok)return {...(await inspectWechatChannels()),blocker:typedBlocker('ACTION_FAILED',actions.activity.reason||'视频号活动状态没有设为不参与',{evidence:actions.activity})};
-  actions.schedule=await ensureWechatSchedule(before.gates.schedule);
+  actions.schedule=publishProfile==='fast'?{ok:true,skipped:true}:await ensureWechatSchedule(before.gates.schedule);
   if(!actions.schedule.ok)return {...(await inspectWechatChannels()),blocker:typedBlocker('ACTION_FAILED',actions.schedule.reason||'视频号定时发表设置没有完成',{evidence:actions.schedule})};
   actions.aiLabel=await ensureWechatAiLabel(before.gates.aiLabel);
   if(!actions.aiLabel.ok)return {...(await inspectWechatChannels()),blocker:typedBlocker('ACTION_FAILED',actions.aiLabel.reason||'视频号视频标注没有完成',{evidence:actions.aiLabel})};
@@ -257,9 +257,9 @@ async function mutateWechatChannels(){
   }
   if(!before.gates.noBlockingDialog.ok&&!productDialogActive)return {...before,blocker:typedBlocker('STATE_AMBIGUOUS','视频号存在未识别的阻塞弹窗',{retryable:true,evidence:before.gates.noBlockingDialog.evidence})};
   if(!before.gates.description.ok||!before.gates.shortTitle.ok){actions.textFields=await setWechatTextFields({description:!before.gates.description.ok,shortTitle:!before.gates.shortTitle.ok});if(!actions.textFields.ok)return {...(await inspectWechatChannels()),blocker:typedBlocker('ACTION_FAILED',actions.textFields.reason||'视频号描述或短标题没有写入',{evidence:actions.textFields})}}
-  actions.activity=await ensureWechatNoActivity(before.gates.activity);
+  actions.activity=publishProfile==='fast'?{ok:true,skipped:true}:await ensureWechatNoActivity(before.gates.activity);
   if(!actions.activity.ok)return {...(await inspectWechatChannels()),blocker:typedBlocker('ACTION_FAILED',actions.activity.reason||'视频号活动状态没有设为不参与',{evidence:actions.activity})};
-  actions.schedule=await ensureWechatSchedule(before.gates.schedule);
+  actions.schedule=publishProfile==='fast'?{ok:true,skipped:true}:await ensureWechatSchedule(before.gates.schedule);
   if(!actions.schedule.ok)return {...(await inspectWechatChannels()),blocker:typedBlocker('ACTION_FAILED',actions.schedule.reason||'视频号定时发表设置没有完成',{evidence:actions.schedule})};
   actions.aiLabel=await ensureWechatAiLabel(before.gates.aiLabel);
   if(!actions.aiLabel.ok)return {...(await inspectWechatChannels()),blocker:typedBlocker('ACTION_FAILED',actions.aiLabel.reason||'视频号视频标注没有完成',{evidence:actions.aiLabel})};
