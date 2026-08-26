@@ -2,6 +2,8 @@ const douyinTitle = pkg.platformTitle.douyin;
 const douyinDescription = pkg.douyinDescription;
 const douyinTopics = pkg.douyinTopics;
 const douyinPublish = pkg.douyinPublish;
+const douyinOriginal = pkg.douyinOriginal === true;
+const douyinAiGenerated = pkg.douyinAiGenerated === true;
 const douyinCustomCover = pkg.cover?.uploadCustomCover === true;
 const douyinCoverAssets = [
   { slot: 'portrait', ratio: '3:4', path: String(pkg.cover?.vertical3x4Path || '') },
@@ -70,7 +72,7 @@ async function inspectDouyin() {
     const defaults={
       officialActivity:activityEntities.length===0,
       collection:collectionText==='请选择合集',
-      declaration:declarationText==='请选择自主声明',
+      declaration:declarationText==='请选择自主声明'||declarationText==='无需添加自主声明',
       chapters:/已添加的章节数量会在这里显示/.test(text),
       location:locationText==='输入地理位置',
       hotspot:hotspotText==='点击输入热点词',
@@ -90,7 +92,7 @@ async function inspectDouyin() {
     const dialogs=[...document.querySelectorAll('[role="dialog"],.semi-modal,[class*="modal-mask"],[class*="dialog-mask"]')]
       .map(el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return {text:compact(el.innerText||el.textContent||'').slice(0,500),cls:String(el.className||''),w:r.width,h:r.height,display:s.display,visibility:s.visibility,opacity:s.opacity}})
       .filter(item=>item.w>20&&item.h>20&&item.display!=='none'&&item.visibility!=='hidden'&&!/animate-hide|leave-active/.test(item.cls))
-    return {text:text.slice(0,2800),title,editorText,prose,selected,plainResidue,duplicates,tokenCounts,uploadSucceeded,uploading,uploadFailed,loginRequired,resumeDialog,identityMatches,identityEmpty,knownMisroutedInput,syncOn,syncFound:Boolean(sync)||syncRadios.length>0,noSyncChecked,simultaneousChecked,defaults,visibility,download,immediate,scheduled,scheduleValues,coverUrls,dialogs}
+    return {text:text.slice(0,2800),title,editorText,prose,selected,plainResidue,duplicates,tokenCounts,uploadSucceeded,uploading,uploadFailed,loginRequired,resumeDialog,identityMatches,identityEmpty,knownMisroutedInput,syncOn,syncFound:Boolean(sync)||syncRadios.length>0,noSyncChecked,simultaneousChecked,declarationText,defaults,visibility,download,immediate,scheduled,scheduleValues,coverUrls,dialogs}
   })(${JSON.stringify(douyinTitle)}, ${JSON.stringify(douyinDescription)}, ${JSON.stringify(douyinTopics)})`);
   const buttons = await inspectFinalButtons(/^发布$/);
   const finalButton = buttons.find(button=>button.buttonish) || buttons[0] || null;
@@ -101,6 +103,10 @@ async function inspectDouyin() {
     return item?.assetPath===expected.path && item?.ratio===expected.ratio && item?.afterUrl && (state.coverUrls[slot]||[]).includes(item.afterUrl);
   }) && receipt.slots.portrait.afterUrl!==receipt.slots.landscape.afterUrl;
   const defaultCoverOk = !douyinCustomCover && ['portrait','landscape'].some(slot=>(state.coverUrls[slot]||[]).length>0 || /选择封面|设置封面/.test(state.text));
+  const defaultExtras = {
+    ...state.defaults,
+    declaration: state.defaults.declaration || (douyinAiGenerated && state.declarationText==='内容由AI生成'),
+  };
   return {
     gates: {
       authenticated: state.loginRequired ? failedGate({loginRequired:true}) : okGate({url:PLATFORM_URLS.douyin}),
@@ -109,8 +115,12 @@ async function inspectDouyin() {
       title: state.title===douyinTitle ? okGate({expected:douyinTitle,actual:state.title}) : failedGate({expected:douyinTitle,actual:state.title}),
       description: state.prose===douyinDescription ? okGate({expected:douyinDescription,actual:state.prose}) : failedGate({expected:douyinDescription,actual:state.prose,editorText:state.editorText}),
       tags: state.selected.length===douyinTopics.length&&!state.plainResidue.length&&!state.duplicates.length ? okGate({requested:douyinTopics,selected:state.selected,tokenCounts:state.tokenCounts}) : failedGate({requested:douyinTopics,selected:state.selected,plainResidue:state.plainResidue,duplicates:state.duplicates,tokenCounts:state.tokenCounts,editorText:state.editorText}),
+      original: !douyinOriginal ? okGate({expected:false,actual:state.declarationText,supported:false}) : failedGate({expected:true,actual:state.declarationText,supported:false,reason:'Douyin自主声明没有原创选项'}),
+      aiLabel: douyinAiGenerated
+        ? (state.declarationText==='内容由AI生成' ? okGate({expected:'内容由AI生成',actual:state.declarationText}) : failedGate({expected:'内容由AI生成',actual:state.declarationText}))
+        : (!state.declarationText||state.declarationText==='请选择自主声明'||state.declarationText==='无需添加自主声明' ? okGate({expected:'none',actual:state.declarationText||'请选择自主声明'}) : failedGate({expected:'none',actual:state.declarationText})),
       settings: (!state.syncFound||state.noSyncChecked)&&!state.syncOn&&!state.simultaneousChecked ? okGate({simultaneousPublish:false,toutiaoSync:false,controlPresent:state.syncFound}) : failedGate({simultaneousPublish:state.simultaneousChecked,noSyncChecked:state.noSyncChecked,toutiaoSync:state.syncOn,syncFound:state.syncFound}),
-      defaults: Object.values(state.defaults).every(Boolean) ? okGate(state.defaults) : failedGate(state.defaults),
+      defaults: Object.values(defaultExtras).every(Boolean) ? okGate(defaultExtras) : failedGate(defaultExtras),
       visibility: state.visibility==='公开' ? okGate({expected:'公开',actual:state.visibility}) : failedGate({expected:'公开',actual:state.visibility}),
       download: state.download==='允许' ? okGate({expected:'允许',actual:state.download}) : failedGate({expected:'允许',actual:state.download}),
       schedule: douyinPublish.mode==='immediate'
@@ -216,15 +226,46 @@ async function ensureDouyinChoice(label, gateName) {
   return after.gates[gateName]?.ok?{ok:true,changed:!target.selected}:{ok:false,reason:`douyin choice did not persist: ${label}`,evidence:after.gates[gateName]?.evidence};
 }
 
+async function ensureDouyinSchedule() {
+  if(douyinPublish.mode==='immediate')return await ensureDouyinChoice('立即发布','schedule');
+  const before=await inspectDouyin();
+  if(before.gates.schedule.ok)return {ok:true,already:true};
+  const target=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const label=[...document.querySelectorAll('label')].find(el=>compact(el.innerText||el.textContent||'')==='定时发布');if(!label)return {ok:false,reason:'douyin scheduled publish choice missing'};label.id='vp2-douyin-scheduled';return {ok:true}})()`);
+  if(!target.ok)return target;
+  await click('#vp2-douyin-scheduled',{label:'select Douyin scheduled'}).catch(()=>{});await wait(.4);
+  const input=await js(String.raw`(() => {const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden'};const item=[...document.querySelectorAll('input')].find(el=>visible(el)&&/日期|时间|date|time/i.test((el.placeholder||'')+' '+(el.className||'')));if(!item)return {ok:false,reason:'douyin schedule input did not appear after selecting scheduled publish'};item.id='vp2-douyin-schedule-input';item.focus();item.select();return {ok:true}})()`);
+  if(!input.ok)return input;
+  await typeText(douyinPublish.publishAt);await pressKey('Enter').catch(()=>{});await wait(.5);
+  const after=await inspectDouyin();
+  return after.gates.schedule.ok?{ok:true,changed:true}:{ok:false,reason:'douyin scheduled time did not persist',evidence:after.gates.schedule.evidence};
+}
+
 async function ensureDouyinPublishSettings() {
   const actions={};
   actions.visibility=await ensureDouyinChoice('公开','visibility');
   if(!actions.visibility.ok)return {ok:false,actions,reason:actions.visibility.reason};
   actions.download=await ensureDouyinChoice('允许','download');
   if(!actions.download.ok)return {ok:false,actions,reason:actions.download.reason};
-  if(douyinPublish.mode!=='immediate')return {ok:false,actions,reason:'douyin scheduled publishing has not yet been live-accepted'};
-  actions.schedule=await ensureDouyinChoice('立即发布','schedule');
+  actions.schedule=await ensureDouyinSchedule();
   return actions.schedule.ok?{ok:true,actions}:{ok:false,actions,reason:actions.schedule.reason};
+}
+
+async function ensureDouyinDeclaration() {
+  if(douyinOriginal)return {ok:false,reason:'抖音当前“自主声明”没有原创选项，无法如实声明原创'};
+  const before=await inspectDouyin();
+  if(before.gates.aiLabel.ok)return {ok:true,already:true};
+  const desired=douyinAiGenerated?'内容由AI生成':'无需添加自主声明';
+  const control=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const section=[...document.querySelectorAll('section')].find(el=>compact(el.querySelector('.title-cnbkZe')?.innerText||'')==='自主声明');const control=section?.querySelector('.selectBox-buZRzi');if(!control)return {ok:false,reason:'douyin declaration control missing'};control.id='vp2-douyin-declaration';control.scrollIntoView({block:'center'});return {ok:true}})()`);
+  if(!control.ok)return control;
+  await click('#vp2-douyin-declaration',{label:'open douyin declaration'}).catch(()=>{});await wait(.2);
+  const option=await js(String.raw`((desired) => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden'};const item=[...document.querySelectorAll('label,[role="radio"],div')].filter(visible).find(el=>compact(el.innerText||el.textContent||'')===desired);if(!item)return {ok:false,reason:'douyin declaration option missing: '+desired};item.id='vp2-douyin-declaration-option';return {ok:true}})(${JSON.stringify(desired)})`);
+  if(!option.ok)return option;
+  await click('#vp2-douyin-declaration-option',{label:`select ${desired}`}).catch(()=>{});await wait(.2);
+  const confirm=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const button=[...document.querySelectorAll('button')].find(el=>compact(el.innerText||el.textContent||'')==='确定'&&!el.disabled);if(!button)return {ok:false,reason:'douyin declaration confirm missing'};button.id='vp2-douyin-declaration-confirm';return {ok:true}})()`);
+  if(!confirm.ok)return confirm;
+  await click('#vp2-douyin-declaration-confirm',{label:'confirm douyin declaration'}).catch(()=>{});await wait(.4);
+  const after=await inspectDouyin();
+  return after.gates.aiLabel.ok?{ok:true,changed:true}:{ok:false,reason:'douyin declaration did not persist',evidence:after.gates.aiLabel.evidence};
 }
 
 async function ensureDouyinMetadata(before) {
@@ -245,11 +286,13 @@ async function prefillDouyin() {
   if(!before.gates.draftIdentity.ok)return {...before,blocker:typedBlocker('FOREIGN_DRAFT','抖音当前编辑器属于其他视频草稿',{evidence:before.gates.draftIdentity.evidence})};
   const metadata=await ensureDouyinMetadata(before);
   if(!metadata.ok)return {...(await inspectDouyin()),actions:metadata.actions,blocker:typedBlocker('ACTION_FAILED',metadata.reason,{evidence:metadata})};
+  const declaration=await ensureDouyinDeclaration();
+  if(!declaration.ok)return {...(await inspectDouyin()),actions:{...metadata.actions,declaration},blocker:typedBlocker('ACTION_FAILED',declaration.reason,{evidence:declaration})};
   const settings=await ensureDouyinPublishSettings();
-  if(!settings.ok)return {...(await inspectDouyin()),actions:{...metadata.actions,settings},blocker:typedBlocker('SELECTOR_DRIFT',settings.reason,{evidence:settings})};
+  if(!settings.ok)return {...(await inspectDouyin()),actions:{...metadata.actions,declaration,settings},blocker:typedBlocker('SELECTOR_DRIFT',settings.reason,{evidence:settings})};
   const sync=await turnOffDouyinSync();
   if(!sync.ok)return {...(await inspectDouyin()),actions:{...metadata.actions,settings,sync},blocker:typedBlocker('SELECTOR_DRIFT',sync.reason,{evidence:sync})};
-  return {...(await inspectDouyin()),actions:{...metadata.actions,settings,sync}};
+  return {...(await inspectDouyin()),actions:{...metadata.actions,declaration,settings,sync}};
 }
 
 async function setDouyinTitle() {
@@ -469,6 +512,8 @@ async function mutateDouyin() {
   const metadata=await ensureDouyinMetadata(before);
   Object.assign(actions,metadata.actions);
   if(!metadata.ok)return {...(await inspectDouyin()),actions,blocker:typedBlocker('ACTION_FAILED',metadata.reason,{evidence:metadata})};
+  actions.declaration=await ensureDouyinDeclaration();
+  if(!actions.declaration.ok)return {...(await inspectDouyin()),actions,blocker:typedBlocker('ACTION_FAILED',actions.declaration.reason,{evidence:actions.declaration})};
   actions.publishSettings=await ensureDouyinPublishSettings();
   if(!actions.publishSettings.ok)return {...(await inspectDouyin()),actions,blocker:typedBlocker('SELECTOR_DRIFT',actions.publishSettings.reason,{evidence:actions.publishSettings})};
   actions.settings = await turnOffDouyinSync();
@@ -522,4 +567,25 @@ async function mutateDouyin() {
   return { ...after, actions, receipts };
 }
 
-async function runPlatformPhase(){if(phase==='inspect'||phase==='verify')return await inspectDouyin();if(phase==='inject')return await startDouyinUpload();if(phase==='prefill')return await prefillDouyin();if(phase==='wait_upload')return await waitExistingDouyinUpload();if(phase==='upload')return await uploadDouyin();if(phase==='mutate')return await mutateDouyin();return {...(await inspectDouyin()),blocker:typedBlocker('ACTION_FAILED',`unsupported Douyin phase: ${phase}`)}}
+async function probeDouyinPublishResult(){return await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden'};const text=compact(document.body.innerText||'');const signals=[...document.querySelectorAll('div,span,p,h1,h2,h3')].filter(visible).map(el=>compact(el.innerText||el.textContent||'')).filter(value=>/^(发布成功|发布成功啦|作品发布成功|已发布|已提交|审核中|定时发布成功)$/.test(value));const errors=[...document.querySelectorAll('div,span,p')].filter(visible).map(el=>compact(el.innerText||el.textContent||'')).filter(value=>/发布失败|提交失败|网络错误|作品未通过/.test(value)).slice(0,5);const dialogs=[...document.querySelectorAll('[role="dialog"],.semi-modal,[class*="modal"]')].filter(visible).map(el=>({text:compact(el.innerText||el.textContent||'').slice(0,800),buttons:[...el.querySelectorAll('button,[role="button"]')].filter(visible).map(button=>{const r=button.getBoundingClientRect();return {text:compact(button.innerText||button.textContent||''),disabled:Boolean(button.disabled),x:r.left+r.width/2,y:r.top+r.height/2}})}));const leftEditor=!/\/creator-micro\/content\/(upload|post\/video)/.test(location.pathname);return {confirmed:signals.length>0||leftEditor,signals:[...new Set(signals)],errors,dialogs,url:location.href,leftEditor,text:text.slice(0,1600)}})()`)}
+
+async function publishDouyin(){
+  const before=await inspectDouyin();
+  const missing=Object.entries(before.gates).filter(([,gate])=>gate?.ok!==true).map(([name])=>name);
+  if(missing.length)return {...before,blocker:typedBlocker('STATE_AMBIGUOUS','抖音没有通过发布前全部页面条件',{evidence:{missing}})};
+  const authorization=await authorizeFinalPublishGuard();
+  if(!authorization.ok)return {...before,blocker:typedBlocker('ACTION_FAILED',authorization.reason,{evidence:authorization})};
+  const snapshot=await snapshotText();const match=String(snapshot).match(/button \[ref=(\d+)[^\]]*\]\s*\n\s*text "发布"/);
+  if(!match)return {...before,blocker:typedBlocker('SELECTOR_DRIFT','douyin ready publish button missing',{evidence:{snapshot:String(snapshot).slice(-3000)}})};
+  await click('@'+match[1],{label:'publish verified Douyin video'});let confirmationClicked=false;
+  for(let attempt=0;attempt<30;attempt+=1){
+    await wait(.5);const probe=await probeDouyinPublishResult();
+    if(probe.confirmed)return {...before,published:true,finalPublishClicked:true,publishReceipt:{confirmed:true,confirmationClicked,signals:probe.signals,url:probe.url,at:new Date().toISOString()}};
+    if(probe.errors.length)return {...before,finalPublishClicked:true,blocker:typedBlocker('ACTION_FAILED','抖音返回发布失败',{evidence:probe})};
+    if(!confirmationClicked){const dialog=probe.dialogs.find(item=>/发布|提交|确认/.test(item.text));const button=dialog?.buttons.find(item=>/^(确认|确定|发布|确认发布|提交)$/.test(item.text)&&!item.disabled);if(button){await click([button.x,button.y],{label:'confirm Douyin publish'});confirmationClicked=true}}
+  }
+  const after=await probeDouyinPublishResult();
+  return {...before,finalPublishClicked:true,blocker:typedBlocker('STATE_AMBIGUOUS','抖音点击发布后没有出现成功证据',{retryable:true,evidence:after})};
+}
+
+async function runPlatformPhase(){if(phase==='inspect'||phase==='verify')return await inspectDouyin();if(phase==='inject')return await startDouyinUpload();if(phase==='prefill')return await prefillDouyin();if(phase==='wait_upload')return await waitExistingDouyinUpload();if(phase==='upload')return await uploadDouyin();if(phase==='mutate')return await mutateDouyin();if(phase==='publish')return await publishDouyin();return {...(await inspectDouyin()),blocker:typedBlocker('ACTION_FAILED',`unsupported Douyin phase: ${phase}`)}}

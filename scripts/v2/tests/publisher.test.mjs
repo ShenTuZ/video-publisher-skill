@@ -244,6 +244,22 @@ test("Xiaohongshu auto-publishes only after persistent prepare and independent R
   assert.equal(summary.platforms.xiaohongshu.published,true);
 });
 
+test("an explicit current-run publish flag permits the first Douyin publish acceptance", async () => {
+  const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-douyin-explicit-publish-test-"));
+  const log=path.join(root,"events.ndjson");
+  const videoPath=path.join(root,"sample-video.mp4");
+  const packagePath=path.join(root,"package.json");
+  const configPath=path.join(root,"config.json");
+  await fs.promises.writeFile(videoPath,"test video fixture");
+  await fs.promises.writeFile(configPath,JSON.stringify({schemaVersion:2,onboarding:{completed:true},sourceDirectory:root,availablePlatforms:["douyin"],defaultPlatforms:["douyin"],declarations:{originalityPolicy:"ask_each_run"},execution:{checkConcurrency:1,uploadConcurrency:1,autoPublishOnReady:true}}));
+  await fs.promises.writeFile(packagePath,JSON.stringify({videoPath,title:"Douyin explicit publish",douyinTopics:["Test"],cover:{uploadCustomCover:false}}));
+  const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"douyin-explicit","douyin","--publish-on-ready","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
+  assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
+  const events=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line));
+  assert.deepEqual(events.filter(item=>item.event==="start").map(item=>item.phase),["inspect","inject","prefill","wait_upload","mutate","verify","publish"]);
+  assert.equal(JSON.parse(result.stdout).platforms.douyin.published,true);
+});
+
 test("a retry never re-enters a platform that already published", async () => {
   const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-partial-publish-retry-test-"));
   const videoPath=path.join(root,"sample-video.mp4");

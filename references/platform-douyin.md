@@ -48,6 +48,10 @@ Some creator accounts do not expose a simultaneous-publication control. Fresh li
 
 Unless a package explicitly requests a scheduled time, keep the platform cover, leave official activities, collection, autonomous declaration, chapters, location, and hot topics unset, and verify `公开`, `允许`, and `立即发布`. The adapter may prefill title, prose, topic entities, and these normal controls while the upload continues. A scheduled package uses `douyinPublish: { "mode": "scheduled", "publishAt": "YYYY-MM-DD HH:mm" }`; do not infer a time from the video.
 
+`douyinAiGenerated: true` maps only to the exact menu item `内容由AI生成`; fresh main-page evidence must expose that value. The observed menu is single-select and has no original-content option. Therefore `douyinOriginal: true` is a typed blocker, not permission to replace it with `内容为个人观点或见解`.
+
+The first formal Douyin release uses the explicitly authorized `--publish-on-ready` path after all selected platforms independently reach `READY`. `publishDouyin` authorizes the guarded final button only then and requires either an exact success signal or a confirmed navigation away from the editor. Keep normal standing auto-publish disabled for Douyin until that first formal release has returned success evidence.
+
 ## Custom Covers
 
 When enabled, upload both assets in this order:
@@ -73,7 +77,9 @@ correct draft identity
 video fully uploaded
 exact title and body
 the exact requested real topic entities, no residue or duplicates
+truthful original/AI declaration intent (`douyinOriginal` blocks when no exact original option exists; `douyinAiGenerated` requires `内容由AI生成`)
 不同时发布 selected
+public visibility, downloads allowed, and the requested immediate/scheduled publish mode
 two distinct custom-cover receipts when enabled
 no blocking dialog
 visible enabled 发布 button

@@ -45,13 +45,14 @@ function parseArgs(argv) {
     checkConcurrency: config.execution.checkConcurrency,
     uploadConcurrency: config.execution.uploadConcurrency,
     autoPublishOnReady: config.execution.autoPublishOnReady === true,
+    explicitPublishOnReady: false,
   };
   const positional = [];
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--inspect-only") { options.inspectOnly = true; continue; }
     if (arg === "--confirm-original-rights") { options.originalRightsConfirmed = true; continue; }
-    if (arg === "--publish-on-ready") { options.autoPublishOnReady = true; continue; }
+    if (arg === "--publish-on-ready") { options.autoPublishOnReady = true; options.explicitPublishOnReady = true; continue; }
     if (arg === "--stop-at-ready") { options.autoPublishOnReady = false; continue; }
     const setters = {
       "--state-root": value => { options.stateRoot = path.resolve(value); },
@@ -77,7 +78,7 @@ function parseArgs(argv) {
   if (unavailablePlatforms.length) {
     throw new UsageError(`Platform is not configured as available: ${unavailablePlatforms.join(", ")}. Update Video Publisher onboarding before browser work.`);
   }
-  const unsupportedAutoPublish = options.autoPublishOnReady ? platforms.filter(platform => !AUTO_PUBLISH_PLATFORMS.has(platform)) : [];
+  const unsupportedAutoPublish = options.autoPublishOnReady && !options.explicitPublishOnReady ? platforms.filter(platform => !AUTO_PUBLISH_PLATFORMS.has(platform)) : [];
   if (unsupportedAutoPublish.length) throw new UsageError(`Automatic final publish is not live-accepted for: ${unsupportedAutoPublish.join(", ")}. Use --stop-at-ready for this run.`);
   return { ...options, packagePath, taskSuffix, platforms };
 }

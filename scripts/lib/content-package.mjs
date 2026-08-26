@@ -154,8 +154,10 @@ export function readPackage(packagePath, { config: suppliedConfig } = {}) {
   const wechatAiGenerated = typeof parsed.wechatAiGenerated === "boolean"
     ? parsed.wechatAiGenerated
     : false;
+  const douyinAiGenerated = parsed.douyinAiGenerated === true;
   const xhsAiGenerated = parsed.xhsAiGenerated === true;
   const xhsOriginal = parsed.xhsOriginal === true;
+  const douyinOriginal = parsed.douyinOriginal === true;
   const wechatOriginal = parsed.wechatOriginal === true;
   const wechatPolicies = {
     location: String(parsed.wechatPolicies?.location || config.platforms.wechat_channels.locationPolicy).trim(),
@@ -191,8 +193,10 @@ export function readPackage(packagePath, { config: suppliedConfig } = {}) {
     douyinPublish,
     wechatLink,
     wechatAiGenerated,
+    douyinAiGenerated,
     xhsAiGenerated,
     xhsOriginal,
+    douyinOriginal,
     wechatOriginal,
     wechatPolicies,
     cover,

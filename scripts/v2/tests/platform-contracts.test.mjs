@@ -46,7 +46,7 @@ test("Xiaohongshu topics start through the native editor command", () => {
 
 test("Douyin preserves committed topic entities while retrying a failed tail query", () => {
   const source = fs.readFileSync(path.join(PLATFORM_DIR, "douyin.mjs"), "utf8");
-  for (const name of ["startDouyinUpload", "prefillDouyin", "ensureDouyinPublishSettings", "ensureDouyinMetadata"]) {
+  for (const name of ["startDouyinUpload", "prefillDouyin", "ensureDouyinPublishSettings", "ensureDouyinSchedule", "ensureDouyinDeclaration", "ensureDouyinMetadata", "publishDouyin"]) {
     assert.match(source, new RegExp(`async function ${name}\\(`), `${name} must remain an idempotent Douyin step`);
   }
   assert.match(source, /phase==='inject'/);
@@ -54,6 +54,10 @@ test("Douyin preserves committed topic entities while retrying a failed tail que
   assert.match(source, /phase==='wait_upload'/);
   assert.match(source, /officialActivity:activityEntities\.length===0/);
   assert.match(source, /controlPresent:state\.syncFound/);
+  assert.match(source, /内容由AI生成/);
+  assert.match(source, /自主声明没有原创选项/);
+  assert.match(source, /authorizeFinalPublishGuard\(\)/);
+  assert.match(source, /phase==='publish'/);
   const cleanupStart = source.indexOf("async function removeDouyinTrailingTopicQuery");
   const cleanupEnd = source.indexOf("async function addDouyinTopic", cleanupStart);
   const addEnd = source.indexOf("async function recoverDouyinTopicPrefix", cleanupEnd);

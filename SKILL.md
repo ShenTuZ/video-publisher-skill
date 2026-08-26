@@ -138,6 +138,18 @@ Xiaohongshu uses this fixed template unless the current request explicitly overr
 }
 ```
 
+Douyin uses this fixed template unless the current request explicitly overrides a field:
+
+```json
+{
+  "douyinOriginal": false,
+  "douyinAiGenerated": false,
+  "douyinPublish": { "mode": "immediate" }
+}
+```
+
+When the user says AI content is involved, set `douyinAiGenerated: true` and select the exact `内容由AI生成` declaration. The current Douyin autonomous-declaration menu has no truthful original-content option; when a package asks for `douyinOriginal: true`, stop with a typed blocker rather than substituting `个人观点或见解`.
+
 Keep the platform-default cover, PK cover off, no chapters/collection/location/components/activities, and public visibility. When the user explicitly says the video contains AI-generated content, set `xhsAiGenerated: true` and select `笔记含AI合成内容`. For scheduled publishing use `xhsPublish: { "mode": "scheduled", "publishAt": "YYYY-MM-DD HH:mm" }`.
 
 Only explicit current-run instructions override this template. For scheduled videos, use `wechatPublish: { "mode": "scheduled", "publishAt": "YYYY-MM-DD HH:mm" }`. For product-linked videos, use either `wechatLink: { "type": "product", "selection": "search", "query": "product name or id", "expectedName": "exact visible product name" }` or `wechatLink: { "type": "product", "selection": "first" }` when the user explicitly requests the first available product. Set `wechatAiGenerated: true` only when the user says the video contains AI-generated content. Set `wechatOriginal: true` only when the user explicitly says to add/declare originality; otherwise leave the control unchecked. If the product entry or first selectable row is unavailable, return a blocker instead of selecting another link type.

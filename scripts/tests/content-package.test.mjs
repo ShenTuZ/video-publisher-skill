@@ -66,7 +66,19 @@ test("Douyin topics come from the package instead of account-specific defaults",
     }));
     const pkg = readPackage(packagePath, { config: defaultConfig() });
     assert.deepEqual(pkg.douyinTopics, ["Automation", "Tutorial"]);
+    assert.equal(pkg.douyinOriginal, false);
+    assert.equal(pkg.douyinAiGenerated, false);
     assert.deepEqual(validateDouyinPackage(pkg), []);
+  });
+});
+
+test("Douyin declaration intent is explicit and opt-in", async () => {
+  await withTempDir(async root => {
+    const packagePath = path.join(root, "package.json");
+    await fs.promises.writeFile(packagePath, JSON.stringify({ title: "Declaration", douyinTopics: ["Test"], douyinOriginal: true, douyinAiGenerated: true }));
+    const pkg = readPackage(packagePath, { config: defaultConfig() });
+    assert.equal(pkg.douyinOriginal, true);
+    assert.equal(pkg.douyinAiGenerated, true);
   });
 });
 
