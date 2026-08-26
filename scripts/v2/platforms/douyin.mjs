@@ -572,9 +572,9 @@ async function publishDouyin(){
   if(missing.length)return {...before,blocker:typedBlocker('STATE_AMBIGUOUS','抖音没有通过发布前全部页面条件',{evidence:{missing}})};
   const authorization=await authorizeFinalPublishGuard();
   if(!authorization.ok)return {...before,blocker:typedBlocker('ACTION_FAILED',authorization.reason,{evidence:authorization})};
-  const snapshot=await snapshotText();const match=String(snapshot).match(/button \[ref=(\d+)[^\]]*\]\s*\n\s*text "发布"/);
-  if(!match)return {...before,blocker:typedBlocker('SELECTOR_DRIFT','douyin ready publish button missing',{evidence:{snapshot:String(snapshot).slice(-3000)}})};
-  await click('@'+match[1],{label:'publish verified Douyin video'});let confirmationClicked=false;
+  const target=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>20&&r.height>20&&s.display!=='none'&&s.visibility!=='hidden'};const button=[...document.querySelectorAll('button,[role="button"]')].find(el=>visible(el)&&compact(el.innerText||el.textContent||'')==='发布'&&!el.disabled);if(!button)return {ok:false,reason:'douyin ready publish button missing'};button.scrollIntoView({block:'center',inline:'center'});const r=button.getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2}})()`);
+  if(!target.ok)return {...before,blocker:typedBlocker('SELECTOR_DRIFT',target.reason,{evidence:target})};
+  await click([target.x,target.y],{label:'publish verified Douyin video'});let confirmationClicked=false;
   for(let attempt=0;attempt<30;attempt+=1){
     await wait(.5);const probe=await probeDouyinPublishResult();
     if(probe.confirmed)return {...before,published:true,finalPublishClicked:true,publishReceipt:{confirmed:true,confirmationClicked,signals:probe.signals,url:probe.url,at:new Date().toISOString()}};

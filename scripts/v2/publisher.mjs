@@ -259,6 +259,15 @@ async function main() {
   }
 
   const activePlatforms = () => runnablePlatforms.filter(platform => state.platforms[platform].status !== "published");
+  const ui = new SerialQueue();
+  async function publishReadyPlatforms() {
+    if (!args.autoPublishOnReady) return;
+    for (const platform of args.platforms) {
+      if (state.platforms[platform].status !== "ready") continue;
+      await ui.enqueue(() => invoke(platform, "publish"));
+    }
+    await ui.idle();
+  }
   if (!args.inspectOnly && args.platforms.every(platform => state.platforms[platform].status === "published")) {
     state.status = "published";
     await store.save(); await store.close();
@@ -294,6 +303,7 @@ async function main() {
 
   console.error(`[video-publisher-v2] inspect parallel=${args.checkConcurrency}`);
   await runPool(activePlatforms(), args.checkConcurrency, platform => invoke(platform, "inspect"));
+  await publishReadyPlatforms();
   if (args.inspectOnly) {
     state.status = runnablePlatforms.length === args.platforms.length ? "inspected" : "blocked";
     await store.save();
@@ -311,7 +321,6 @@ async function main() {
     process.exitCode = 10; return;
   }
 
-  const ui = new SerialQueue();
   const injectTargets = inputChannelBroken ? [] : activePlatforms().filter(platform => FAST_OVERLAP_PLATFORMS.has(platform) && state.platforms[platform].status === "needs_upload");
   console.error(`[video-publisher-v2] fast inject parallel=${args.uploadConcurrency}: ${injectTargets.join(",") || "none"}`);
   await runPool(injectTargets, args.uploadConcurrency, platform => invoke(platform, "inject"));
@@ -332,6 +341,7 @@ async function main() {
   ];
   console.error(`[video-publisher-v2] upload wait parallel=${args.uploadConcurrency}: ${uploadWork.map(item => `${item.platform}:${item.phase}`).join(",") || "none"}`);
   await runPool(uploadWork, args.uploadConcurrency, item => invoke(item.platform, item.phase));
+  await publishReadyPlatforms();
 
   // Fast adapters exit their injection runners as soon as the browser proves upload start.
   // One serial UI controller may then prefill fields while browser uploads continue.
@@ -347,9 +357,11 @@ async function main() {
     await ui.enqueue(() => invoke(platform, "mutate"));
   }
   await ui.idle();
+  await publishReadyPlatforms();
 
   console.error(`[video-publisher-v2] final verify parallel=${args.checkConcurrency}`);
   await runPool(activePlatforms().filter(platform => state.platforms[platform].status !== "blocked_user"), args.checkConcurrency, platform => invoke(platform, "verify"));
+  await publishReadyPlatforms();
 
   // One targeted retry is allowed only for an idempotent mutation whose fresh verifier
   // returned STATE_AMBIGUOUS. Typed action/auth/risk-control failures are never looped.
@@ -362,17 +374,13 @@ async function main() {
     await ui.enqueue(() => invoke(platform, "mutate"));
   }
   await ui.idle();
-  if (retryTargets.length) await runPool(retryTargets, args.checkConcurrency, platform => invoke(platform, "verify"));
+  if (retryTargets.length) {
+    await runPool(retryTargets, args.checkConcurrency, platform => invoke(platform, "verify"));
+    await publishReadyPlatforms();
+  }
 
   let complete = args.platforms.every(platform => state.platforms[platform].status === "published" || state.platforms[platform].verdict?.ready === true);
-  if (complete && args.autoPublishOnReady) {
-    for (const platform of args.platforms.filter(platform => state.platforms[platform].status !== "published")) {
-      await ui.enqueue(() => invoke(platform, "publish"));
-      if (state.platforms[platform].status !== "published") break;
-    }
-    await ui.idle();
-    complete = args.platforms.every(platform => state.platforms[platform].status === "published");
-  }
+  if (args.autoPublishOnReady) complete = args.platforms.every(platform => state.platforms[platform].status === "published");
   state.status = args.platforms.every(platform => state.platforms[platform].status === "published") ? "published" : (complete ? "ready" : "blocked");
   await store.save(); await store.close();
   console.log(JSON.stringify(summary(state, args.platforms, store.statePath), null, 2));

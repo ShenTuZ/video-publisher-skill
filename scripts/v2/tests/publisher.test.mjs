@@ -256,7 +256,7 @@ test("an explicit current-run publish flag permits the first Douyin publish acce
   const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"douyin-explicit","douyin","--publish-on-ready","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
   assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
   const events=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line));
-  assert.deepEqual(events.filter(item=>item.event==="start").map(item=>item.phase),["inspect","inject","prefill","wait_upload","mutate","verify","publish"]);
+  assert.deepEqual(events.filter(item=>item.event==="start").map(item=>item.phase),["inspect","inject","prefill","wait_upload","mutate","publish"]);
   assert.equal(JSON.parse(result.stdout).platforms.douyin.published,true);
 });
 

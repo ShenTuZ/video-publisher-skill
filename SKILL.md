@@ -23,7 +23,7 @@ Current-run instructions override package fields; package fields override config
 
 ## Safety Boundary
 
-Default to stopping before the final `发布`, `发布笔记`, or `发表` control. A current-run `--publish-on-ready` instruction or an explicitly configured `execution.autoPublishOnReady: true` authorizes the maintained runner to publish only after every selected platform independently reaches `READY`. Until then, the page-level capture guard remains armed; `READY` requires `guardArmed: true`, `blockedAttempts: 0`, and `finalPublishClicked: false` from fresh page evidence. The later `publish` phase receives a separate orchestrator authorization, permits the exact final action, and requires platform success evidence.
+Default to stopping before the final `发布`, `发布笔记`, or `发表` control. A current-run `--publish-on-ready` instruction or an explicitly configured `execution.autoPublishOnReady: true` authorizes the maintained runner to publish each platform as soon as that platform independently reaches `READY`; a pending, blocked, or failed sibling does not delay it. Until then, the page-level capture guard remains armed; `READY` requires `guardArmed: true`, `blockedAttempts: 0`, and `finalPublishClicked: false` from fresh page evidence. The later `publish` phase receives a separate orchestrator authorization, permits the exact final action, and requires platform success evidence.
 
 Xiaohongshu defaults to `xhsOriginal: false` and WeChat defaults to `wechatOriginal: false`. Only an explicit current-video instruction may set either field to true; true requires the applicable standing policy or current-video confirmation before browser mutation. Never infer originality from the video. Originality remains separate from the optional READY-to-publish policy.
 
@@ -166,7 +166,7 @@ Generate a meaningful WeChat short-title summary of at most 10 Unicode character
 7. While browser uploads continue, fill metadata through one serial UI controller.
 8. Wait for upload completion in parallel without further input, then repair remaining post-upload fields and covers.
 9. Run independent parallel verification.
-10. Stop at READY by default. When the user explicitly enabled automatic publishing, run the separately authorized `publish` phase and require platform success evidence.
+10. Stop at READY by default. When the user explicitly enabled automatic publishing, publish each independently READY platform immediately through the separately authorized `publish` phase and require its own success evidence.
 
 Read-only inspection:
 
