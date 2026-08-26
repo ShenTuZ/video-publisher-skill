@@ -24,7 +24,7 @@ If a persisted numeric id is explicitly reported as `task space not found` after
 
 Ego may recycle an existing numeric id for a different task space after restart. Before reuse, compare the live name with the persisted exact name. A mismatch is the same identity-loss class as a missing id: never inspect or mutate the colliding space, select or create only the persisted exact name, persist its current id, and invalidate receipts tied to the previous page.
 
-This fallback has passed real task-space-loss tests on all four platforms. A replacement space must start from fresh page truth, rebuild only that platform, generate new cover receipts when the old page no longer exists, persist the replacement numeric id, and leave every unaffected platform untouched.
+This fallback has passed real task-space-loss tests on all three supported platforms. A replacement space must start from fresh page truth, rebuild only that platform, generate new cover receipts when the old page no longer exists, persist the replacement numeric id, and leave every unaffected platform untouched.
 
 If the Ego Lite process exits or returns no structured observation, return a retryable `INPUT_CHANNEL_BROKEN` blocker with all required gates false and `finalPublishClicked: false`. Do not reinterpret the missing browser channel as a missing upload input, do not start reinjection in that run, and do not throw away the persisted job. The same-job retry after Ego restarts performs normal task-space recovery and fresh inspection.
 

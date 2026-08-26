@@ -6,7 +6,7 @@ Read `platform-common.md` and `ego-browser-workflow.md` first.
 
 Historical runs passed upload completion, exact description, cover handling, no blocking dialog, enabled `发表`, and pre-READY `finalPublishClicked: false`. Current account evidence also confirms the optional originality control documented below.
 
-The remaining system-level boundary is the four-platform production-orchestrator regression described in the root Skill.
+The remaining system-level boundary is the three-platform production-orchestrator regression described in the root Skill.
 
 ## Wujie Lifecycle
 

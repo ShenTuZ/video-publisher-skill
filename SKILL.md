@@ -1,11 +1,11 @@
 ---
 name: video-publisher
-description: Prepare and automate video drafts for Xiaohongshu, Douyin, and WeChat Channels with Ego Lite. Use for onboarding, video intake, copy and tags, upload scheduling, WeChat product links and AI labels, draft recovery, original declarations, existing-cover upload, workflow extensions, and verification before final publish.
+description: Publish videos to Xiaohongshu, Douyin, and WeChat Channels with Ego Lite. Use for onboarding, video intake, copy and tags, upload scheduling, WeChat product links and AI labels, originality declarations, existing-cover upload, workflow extensions, verification, and confirmed final publishing.
 ---
 
 # Video Publisher
 
-Prepare one confirmed video package and drive selected creator platforms to a verified draft state. Use Ego Lite for all live creator-page work.
+Prepare one confirmed video package, verify every selected platform, and publish it. `READY` is the internal pre-publish gate, not the normal endpoint. Use Ego Lite for all live creator-page work.
 
 ## Configuration And Onboarding
 
@@ -23,7 +23,7 @@ Current-run instructions override package fields; package fields override config
 
 ## Safety Boundary
 
-Default to stopping before the final `发布`, `发布笔记`, or `发表` control. A current-run `--publish-on-ready` instruction or an explicitly configured `execution.autoPublishOnReady: true` authorizes the maintained runner to publish each platform as soon as that platform independently reaches `READY`; a pending, blocked, or failed sibling does not delay it. Until then, the page-level capture guard remains armed; `READY` requires `guardArmed: true`, `blockedAttempts: 0`, and `finalPublishClicked: false` from fresh page evidence. The later `publish` phase receives a separate orchestrator authorization, permits the exact final action, and requires platform success evidence.
+This is a publishing workflow. For a normal user request to publish, pass `--publish-on-ready` so the maintained runner publishes each platform as soon as it independently reaches `READY`; a pending, blocked, or failed sibling does not delay it. An explicitly configured `execution.autoPublishOnReady: true` provides the same standing authorization. Use `--stop-at-ready` only when the user explicitly asks to review a draft before publishing, and use `--inspect-only` for read-only checks. Until publication is authorized, the page-level capture guard remains armed; `READY` requires `guardArmed: true`, `blockedAttempts: 0`, and `finalPublishClicked: false` from fresh page evidence. The later `publish` phase permits the exact final action and requires platform success evidence.
 
 Xiaohongshu defaults to `xhsOriginal: false` and WeChat defaults to `wechatOriginal: false`. Only an explicit current-video instruction may set either field to true; true requires the applicable standing policy or current-video confirmation before browser mutation. Never infer originality from the video. Originality remains separate from the optional READY-to-publish policy.
 
@@ -38,6 +38,8 @@ scripts/run-fast-platforms.sh <package.json> [task-suffix] [platform...]
 ```
 
 This invokes `scripts/v2/publisher.mjs`. Use one orchestrator and one Ego Lite task space per platform. Do not delegate live creator-page control to sub Agents.
+
+For normal publication, append `--publish-on-ready`. Use `--stop-at-ready` only for an explicit review-only request.
 
 The publisher acquires a state-root publisher lock and an atomic job-directory lock before state or browser work. Only one video job may control the shared creator accounts at a time. Stale dead-PID locks may be recovered automatically; per-platform locks remain as defense in depth.
 
@@ -166,7 +168,7 @@ Generate a meaningful WeChat short-title summary of at most 10 Unicode character
 7. While browser uploads continue, fill metadata through one serial UI controller.
 8. Wait for upload completion in parallel without further input, then repair remaining post-upload fields and covers.
 9. Run independent parallel verification.
-10. Stop at READY by default. When the user explicitly enabled automatic publishing, publish each independently READY platform immediately through the separately authorized `publish` phase and require its own success evidence.
+10. Publish each independently READY platform immediately through the authorized `publish` phase and require its own success evidence. Stop at READY only when the user explicitly requests review before publication.
 
 Read-only inspection:
 
