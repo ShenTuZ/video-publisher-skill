@@ -52,7 +52,7 @@ post-upload repair, declarations, and covers: serial, exactly 1
 final verification: parallel, default 4
 ```
 
-Before an upload input is touched, every selected platform must pass two fresh read-only health inspections in its persisted task space. Fast adapters then split upload into `inject` and `wait_upload`. Fast mode starts injections serially because Ego's input channel is shared, but each browser upload continues in the background while one serial UI controller fills metadata; completion waiters remain parallel and read-only. Never run two input controllers at once or reinject an active upload. If any runner returns `INPUT_CHANNEL_BROKEN`, wait for siblings, skip remaining mutation, and run only final read-only verification. `run-fast-platforms.sh` automatically retries the same persisted job after 15 seconds and 30 seconds, only for that typed blocker; after two failed recoveries it stops without publishing an unverified platform.
+Before an upload input is touched, every selected platform must pass two fresh read-only health inspections in its persisted task space. Fast adapters then split upload into `inject` and `wait_upload`. Fast mode starts injections serially because Ego's input channel is shared, but each browser upload continues in the background while one serial UI controller fills metadata; completion waiters remain parallel and read-only. Never run two input controllers at once or reinject an active upload. If any runner returns `INPUT_CHANNEL_BROKEN`, wait for siblings, skip remaining mutation, and run only final read-only verification. `run-fast-platforms.sh` automatically retries the same persisted job after 5 seconds and 10 seconds, only for that typed blocker; after two failed recoveries it stops without publishing an unverified platform.
 
 When Xiaohongshu or WeChat Channels is the only selected platform, use its persistent `prepare` runner. One Ego process inspects, injects, prefills while upload continues, waits, and repairs the draft; a separate read-only `verify` runner must still re-read every gate. Multi-platform jobs retain the split phase scheduler so one platform never blocks the others.
 
@@ -166,7 +166,7 @@ Generate a meaningful WeChat short-title summary of at most 10 Unicode character
 7. While browser uploads continue, fill metadata through one serial UI controller.
 8. Wait for upload completion in parallel without further input, then repair remaining post-upload fields and covers.
 9. In fast mode, publish each READY platform immediately; run a full independent verification only under `--strict`.
-10. On a shared Ego input-channel failure, retry only the same persisted job with bounded 15-second and 30-second backoff; stop after that limit.
+10. On a shared Ego input-channel failure, retry only the same persisted job with bounded 5-second and 10-second backoff; stop after that limit.
 11. Stop at READY by default. When the user explicitly enabled automatic publishing, require each platform's own success evidence.
 
 Read-only inspection:

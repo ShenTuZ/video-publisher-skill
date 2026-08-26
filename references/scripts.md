@@ -43,7 +43,7 @@ scripts/run-fast-platforms.sh \
 
 This is the normal publishing command. Use `--stop-at-ready` only when the user explicitly requests a reviewable draft instead of publication.
 
-Before upload input, the runner performs two read-only browser-health inspections for every selected platform. If the shared Ego channel then returns `INPUT_CHANNEL_BROKEN`, this entry retries the same stateful job after 15 seconds and 30 seconds. It never reinjects an active upload; after the second unsuccessful recovery it exits with the saved state and no unverified final publish.
+Before upload input, the runner performs two read-only browser-health inspections for every selected platform. If the shared Ego channel then returns `INPUT_CHANNEL_BROKEN`, this entry retries the same stateful job after 5 seconds and 10 seconds. It never reinjects an active upload; after the second unsuccessful recovery it exits with the saved state and no unverified final publish.
 
 When onboarding has `declarations.originalityPolicy: all_videos_original`, the runner applies truthful original/self-made declarations without another flag. With the generic `ask_each_run` policy, add `--confirm-original-rights` only after the user confirms the current video; this one-run override is not persisted. Read-only `--inspect-only` never needs either signal.
 
