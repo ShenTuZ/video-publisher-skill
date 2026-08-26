@@ -2,7 +2,6 @@ const douyinTitle = pkg.platformTitle.douyin;
 const douyinDescription = pkg.douyinDescription;
 const douyinTopics = pkg.douyinTopics;
 const douyinPublish = pkg.douyinPublish;
-const douyinOriginal = pkg.douyinOriginal === true;
 const douyinAiGenerated = pkg.douyinAiGenerated === true;
 const douyinCustomCover = pkg.cover?.uploadCustomCover === true;
 const douyinCoverAssets = [
@@ -115,7 +114,6 @@ async function inspectDouyin() {
       title: state.title===douyinTitle ? okGate({expected:douyinTitle,actual:state.title}) : failedGate({expected:douyinTitle,actual:state.title}),
       description: state.prose===douyinDescription ? okGate({expected:douyinDescription,actual:state.prose}) : failedGate({expected:douyinDescription,actual:state.prose,editorText:state.editorText}),
       tags: state.selected.length===douyinTopics.length&&!state.plainResidue.length&&!state.duplicates.length ? okGate({requested:douyinTopics,selected:state.selected,tokenCounts:state.tokenCounts}) : failedGate({requested:douyinTopics,selected:state.selected,plainResidue:state.plainResidue,duplicates:state.duplicates,tokenCounts:state.tokenCounts,editorText:state.editorText}),
-      original: !douyinOriginal ? okGate({expected:false,actual:state.declarationText,supported:false}) : failedGate({expected:true,actual:state.declarationText,supported:false,reason:'Douyin自主声明没有原创选项'}),
       aiLabel: douyinAiGenerated
         ? (state.declarationText==='内容由AI生成' ? okGate({expected:'内容由AI生成',actual:state.declarationText}) : failedGate({expected:'内容由AI生成',actual:state.declarationText}))
         : (!state.declarationText||state.declarationText==='请选择自主声明'||state.declarationText==='无需添加自主声明' ? okGate({expected:'none',actual:state.declarationText||'请选择自主声明'}) : failedGate({expected:'none',actual:state.declarationText})),
@@ -251,7 +249,6 @@ async function ensureDouyinPublishSettings() {
 }
 
 async function ensureDouyinDeclaration() {
-  if(douyinOriginal)return {ok:false,reason:'抖音当前“自主声明”没有原创选项，无法如实声明原创'};
   const before=await inspectDouyin();
   if(before.gates.aiLabel.ok)return {ok:true,already:true};
   const desired=douyinAiGenerated?'内容由AI生成':'无需添加自主声明';

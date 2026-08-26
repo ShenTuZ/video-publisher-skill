@@ -55,7 +55,7 @@ test("Douyin preserves committed topic entities while retrying a failed tail que
   assert.match(source, /officialActivity:activityEntities\.length===0/);
   assert.match(source, /controlPresent:state\.syncFound/);
   assert.match(source, /内容由AI生成/);
-  assert.match(source, /自主声明没有原创选项/);
+  assert.doesNotMatch(source, /douyinOriginal/);
   assert.match(source, /authorizeFinalPublishGuard\(\)/);
   assert.match(source, /phase==='publish'/);
   const cleanupStart = source.indexOf("async function removeDouyinTrailingTopicQuery");

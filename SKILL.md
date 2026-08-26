@@ -142,13 +142,12 @@ Douyin uses this fixed template unless the current request explicitly overrides 
 
 ```json
 {
-  "douyinOriginal": false,
   "douyinAiGenerated": false,
   "douyinPublish": { "mode": "immediate" }
 }
 ```
 
-When the user says AI content is involved, set `douyinAiGenerated: true` and select the exact `内容由AI生成` declaration. The current Douyin autonomous-declaration menu has no truthful original-content option; when a package asks for `douyinOriginal: true`, stop with a typed blocker rather than substituting `个人观点或见解`.
+When the user says AI content is involved, set `douyinAiGenerated: true` and select the exact `内容由AI生成` declaration. Douyin has no original-content control, so originality instructions apply only to Xiaohongshu and WeChat Channels; do not map them to Douyin's autonomous declaration.
 
 Keep the platform-default cover, PK cover off, no chapters/collection/location/components/activities, and public visibility. When the user explicitly says the video contains AI-generated content, set `xhsAiGenerated: true` and select `笔记含AI合成内容`. For scheduled publishing use `xhsPublish: { "mode": "scheduled", "publishAt": "YYYY-MM-DD HH:mm" }`.
 
