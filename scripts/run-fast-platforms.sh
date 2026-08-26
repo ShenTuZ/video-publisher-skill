@@ -29,6 +29,7 @@ cleanup() {
 trap cleanup EXIT
 
 while true; do
+  attempt_started="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
   attempt_log="$(mktemp "${TMPDIR:-/tmp}/video-publisher-recovery.XXXXXX")"
   set +e
   node "${script_dir}/v2/publisher.mjs" "$@" 2>&1 | tee "$attempt_log"
@@ -39,7 +40,7 @@ while true; do
   if [[ "$status" -ne 10 || "$attempt" -ge "${#recovery_delays[@]}" ]]; then exit "$status"; fi
 
   state_path="$(node -e 'const fs=require("fs");const text=fs.readFileSync(process.argv[1],"utf8");const matches=[...text.matchAll(/"statePath"\s*:\s*"([^"]+)"/g)];process.stdout.write(matches.at(-1)?.[1]||"");' "$attempt_log")"
-  should_retry="$(node -e 'const fs=require("fs");try{const statePath=process.argv[1];if(!statePath)process.exit(0);const state=JSON.parse(fs.readFileSync(statePath,"utf8"));const broken=Object.values(state.platforms||{}).some(item=>item?.verdict?.blocker?.code==="INPUT_CHANNEL_BROKEN");process.stdout.write(broken?"1":"0")}catch{}' "$state_path")"
+  should_retry="$(node -e 'const fs=require("fs");try{const statePath=process.argv[1],since=Date.parse(process.argv[2]||"");if(!statePath||!Number.isFinite(since))process.exit(0);const state=JSON.parse(fs.readFileSync(statePath,"utf8"));const broken=Object.values(state.platforms||{}).some(item=>{const current=item?.verdict?.blocker?.code==="INPUT_CHANNEL_BROKEN"&&Date.parse(item?.lastObservedAt||0)>=since;const history=(item?.history||[]).some(event=>event?.blocker?.code==="INPUT_CHANNEL_BROKEN"&&Date.parse(event?.at||0)>=since);return current||history});process.stdout.write(broken?"1":"0")}catch{}' "$state_path" "$attempt_started")"
   if [[ "$should_retry" != "1" ]]; then exit "$status"; fi
 
   delay="${recovery_delays[$attempt]}"
