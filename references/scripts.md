@@ -128,6 +128,7 @@ typed blocker, when present
 cover receipts, when produced
 finalPublishClicked: false before READY; true only for an authorized publish phase
 publishReceipt with confirmed platform success when phase is publish
+optional timing with startedAt, finishedAt, and durationMs
 ```
 
 Do not parse unstructured page logs as success.

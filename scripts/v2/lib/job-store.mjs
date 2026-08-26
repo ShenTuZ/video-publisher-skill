@@ -115,7 +115,7 @@ export class JobStore {
     item.taskSpaceId = observation.taskSpaceId ?? item.taskSpaceId ?? null;
     item.verdict = verdict;
     item.history ||= [];
-    item.history.push({ at: observation.observedAt, phase, evidencePath, ready: verdict.ready, missing: verdict.missing, blocker: verdict.blocker });
+    item.history.push({ at: observation.observedAt, phase, evidencePath, ready: verdict.ready, missing: verdict.missing, blocker: verdict.blocker, ...(observation.timing ? { timing: observation.timing } : {}) });
     if (item.history.length > 40) item.history = item.history.slice(-40);
     await this.save();
     return evidencePath;

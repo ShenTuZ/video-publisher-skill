@@ -200,6 +200,8 @@ async function main() {
   const runnerPath = path.resolve(process.env.VIDEO_PUBLISHER_V2_RUNNER || path.join(DIR, "run-platform.mjs"));
   let inputChannelBroken = false;
   async function invoke(platform, phase) {
+    const startedAt = new Date().toISOString();
+    const startedMs = Date.now();
     const item = state.platforms[platform];
     const previousTaskSpaceId = item.taskSpaceId;
     const runnerArgs = [runnerPath, platform, args.packagePath, phase, `${args.taskSuffix}-${jobId}`, item.taskSpaceId ? String(item.taskSpaceId) : ""];
@@ -215,6 +217,7 @@ async function main() {
       },
     });
     const observation = parseV2Result(`${execution.stdout}\n${execution.stderr}`);
+    observation.timing = { startedAt, finishedAt: new Date().toISOString(), durationMs: Date.now() - startedMs };
     if (observation.taskSpace) item.taskSpaceName = observation.taskSpace;
     const taskSpaceChanged = previousTaskSpaceId != null && observation.taskSpaceId != null
       && Number(previousTaskSpaceId) !== Number(observation.taskSpaceId);

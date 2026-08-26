@@ -29,6 +29,16 @@ test("job store restores only matching receipt checkpoints", async () => {
   assert.equal(fs.existsSync(store.receiptCheckpointPath("douyin")), false);
 });
 
+test("job history preserves optional backward-compatible phase timing", async () => {
+  const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-phase-timing-test-"));
+  const store=new JobStore(root,{schemaVersion:3,updatedAt:"",platforms:{xiaohongshu:{}}});
+  await store.initialize();
+  const timing={startedAt:"2026-08-26T00:00:00.000Z",finishedAt:"2026-08-26T00:00:01.234Z",durationMs:1234};
+  await store.record("xiaohongshu","inspect",{observedAt:timing.finishedAt,taskSpaceId:1,timing},{ready:false,missing:["video"],blocker:null});
+  assert.deepEqual(store.state.platforms.xiaohongshu.history[0].timing,timing);
+  await store.close();
+});
+
 test("job store restores a corrupt primary from its atomic backup", async () => {
   const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "video-publisher-state-recovery-test-"));
   const initial = {

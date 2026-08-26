@@ -240,11 +240,11 @@ async function rebuildXhsTopics() {
     })()`);
     if (!started.ok) { failure={ ...started, reason: started.reason || 'xiaohongshu native topic entry did not start',tag }; break; }
     await cdp('Input.insertText', { text: queryTag });
-    await wait(1.2);
-    const typed=await js(String.raw`((tag) => {const editors=[...document.querySelectorAll('[contenteditable="true"],[contenteditable=""]')];const editor=editors.find(el=>/话题|creator-editor/i.test(String(el.className||'')))||editors[0];const text=String(editor?.innerText||editor?.textContent||'').replace(/\u200b/g,'').trimEnd();return {ok:text.replace(/\s+/g,'').toLowerCase().endsWith(('#'+String(tag)).toLowerCase()),text}})(${JSON.stringify(queryTag)})`);
+    let typed={ok:false,text:''};
+    for(let attempt=0;attempt<10&&!typed.ok;attempt+=1){typed=await js(String.raw`((tag) => {const editors=[...document.querySelectorAll('[contenteditable="true"],[contenteditable=""]')];const editor=editors.find(el=>/话题|creator-editor/i.test(String(el.className||'')))||editors[0];const text=String(editor?.innerText||editor?.textContent||'').replace(/\u200b/g,'').trimEnd();return {ok:text.replace(/\s+/g,'').toLowerCase().endsWith(('#'+String(tag)).toLowerCase()),text}})(${JSON.stringify(queryTag)})`);if(!typed.ok)await wait(.2)}
     if(!typed.ok){failure={ok:false,reason:'xiaohongshu topic query did not persist exactly',tag,typed};break;}
     let clicked = null;
-    for (let attempt = 0; attempt < 12; attempt += 1) {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
       clicked = await js(String.raw`((tag) => {
       const compact = value => String(value || '').replace(/\s+/g, ' ').trim()
       const normalize = value => String(value || '').replace(/\s+/g, '').toLowerCase()
@@ -261,18 +261,18 @@ async function rebuildXhsTopics() {
       row.el.click(); return { ok: true, text: row.text }
     })(${JSON.stringify(queryTag)})`);
       if (clicked.ok) break;
-      await wait(0.75);
+      await wait(.2);
     }
     if (!clicked.ok) { failure={...clicked,tag}; break; }
-    await wait(1.2);
-    const committed = await js(String.raw`((tag) => [...document.querySelectorAll('[contenteditable] a')]
-      .some(el => {let name='';try{name=JSON.parse(el.getAttribute('data-topic')||'{}').name||''}catch{};if(!name)name=String(el.innerText||el.textContent||'').replace(/^#|\[话题\]#.*$/g,'');return name.replace(/\s+/g,'').toLowerCase()===String(tag).replace(/\s+/g,'').toLowerCase()}))(${JSON.stringify(tag)})`);
+    let committed=false;
+    for(let attempt=0;attempt<10&&!committed;attempt+=1){committed=await js(String.raw`((tag) => [...document.querySelectorAll('[contenteditable] a')]
+      .some(el => {let name='';try{name=JSON.parse(el.getAttribute('data-topic')||'{}').name||''}catch{};if(!name)name=String(el.innerText||el.textContent||'').replace(/^#|\[话题\]#.*$/g,'');return name.replace(/\s+/g,'').toLowerCase()===String(tag).replace(/\s+/g,'').toLowerCase()}))(${JSON.stringify(tag)})`);if(!committed)await wait(.2)}
     if (!committed) { failure={ ok: false, reason: 'topic entity did not commit', tag }; break; }
     await cdp('Input.insertText', { text: ' ' });
     }
     if(!failure){
       const verified=await inspectXiaohongshu();
-      if(verified.gates.description.ok&&verified.gates.tags.ok)return {ok:true,rebuildAttempt,attempts:[...attempts,{rebuildAttempt,result:'committed'}]};
+      if(verified.gates.description.ok&&verified.gates.tags.ok)return {ok:true,rebuildAttempt,attempts:[...attempts,{rebuildAttempt,result:'committed'}],verifiedGates:verified.gates};
       failure={ok:false,reason:'xiaohongshu description and topic entities did not pass exact post-build verification',evidence:{description:verified.gates.description.evidence,tags:verified.gates.tags.evidence}};
     }
     attempts.push({rebuildAttempt,...failure});
@@ -282,10 +282,10 @@ async function rebuildXhsTopics() {
   return {ok:false,reason:'xiaohongshu exact topics did not commit after bounded whole-set rebuilds',lastFailure:last,attempts};
 }
 
-async function ensureXhsOriginalPolicy() {
+async function ensureXhsOriginalPolicy(currentGate=null) {
   await removeExactStaleMask(/笔记完成原创声明后|原创声明须知|声明原创/);
-  let inspected = await inspectXiaohongshu();
-  if (inspected.gates.original.ok) return { ok: true, already: true };
+  const gate=currentGate||(await inspectXiaohongshu()).gates.original;
+  if (gate.ok) return { ok: true, already: true };
   const control = await js(String.raw`(() => {
     const compact = value => String(value || '').replace(/\s+/g, ' ').trim()
     const labels = [...document.querySelectorAll('div,section,label,span')].filter(el => compact(el.innerText || el.textContent || '') === '原创声明').sort((a,b)=>{const ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();return ar.width*ar.height-br.width*br.height})
@@ -311,31 +311,31 @@ async function ensureXhsOriginalPolicy() {
   })()`) : { ok: true, modal: false };
   await wait(2);
   await removeExactStaleMask(/笔记完成原创声明后|原创声明须知|声明原创/);
-  inspected = await inspectXiaohongshu();
+  const inspected = await inspectXiaohongshu();
   return inspected.gates.original.ok ? { ok: true, control, modalResult } : { ok: false, reason: 'xiaohongshu original declaration state did not persist', control, modalResult };
 }
 
 async function locateXhsSwitch(labelText){return await js(String.raw`((labelText) => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const label=[...document.querySelectorAll('div,span,label')].filter(el=>compact(el.innerText||el.textContent||'')===labelText).sort((a,b)=>{const ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();return ar.width*ar.height-br.width*br.height})[0];const row=label?.closest('.custom-switch-wrapper')||label?.parentElement?.parentElement;const sim=row?.querySelector('.d-switch-simulator');const input=sim?.querySelector('input[type="checkbox"]')||row?.querySelector('input[type="checkbox"]');const el=row?.querySelector('.d-switch')||sim;if(!el||!sim)return {ok:false,reason:'xiaohongshu '+labelText+' switch missing'};el.scrollIntoView({block:'center',inline:'center'});const r=el.getBoundingClientRect();return {ok:true,enabled:Boolean(input?.checked||sim.classList.contains('checked')),className:String(sim.className||''),x:r.left+r.width/2,y:r.top+r.height/2}})(${JSON.stringify(labelText)})`)}
 
-async function ensureXhsPkCoverOff(){const before=await inspectXiaohongshu();if(before.gates.pkCover.ok)return {ok:true,already:true};const target=await locateXhsSwitch('PK封面');if(!target.ok)return target;if(!target.enabled)return {ok:true,already:true};await click([target.x,target.y],{label:'disable xhs PK cover'});await wait(1);const after=await inspectXiaohongshu();return {ok:after.gates.pkCover.ok,evidence:after.gates.pkCover.evidence}}
+async function ensureXhsPkCoverOff(currentGate=null){const gate=currentGate||(await inspectXiaohongshu()).gates.pkCover;if(gate.ok)return {ok:true,already:true};const target=await locateXhsSwitch('PK封面');if(!target.ok)return target;if(!target.enabled)return {ok:true,already:true};await click([target.x,target.y],{label:'disable xhs PK cover'});await wait(1);const after=await inspectXiaohongshu();return {ok:after.gates.pkCover.ok,evidence:after.gates.pkCover.evidence}}
 
-async function ensureXhsContentType(){
-  const before=await inspectXiaohongshu();if(before.gates.contentType.ok)return {ok:true,already:true,evidence:before.gates.contentType.evidence};
+async function ensureXhsContentType(currentGate=null){
+  const gate=currentGate||(await inspectXiaohongshu()).gates.contentType;if(gate.ok)return {ok:true,already:true,evidence:gate.evidence};
   const opened=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const placeholder=[...document.querySelectorAll('.d-select-placeholder,.d-select-content')].find(el=>/内容类型声明|AI合成内容|虚构演绎|营销广告|内容来源声明/.test(compact(el.innerText||el.textContent||'')));const el=placeholder?.closest('.d-select-wrapper');if(!el)return {ok:false,reason:'xiaohongshu content declaration control missing'};el.scrollIntoView({block:'center'});const r=el.getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2}})()`);if(!opened.ok)return opened;
   if(!xhsAiGenerated){const cleared=await js(String.raw`(() => {const wrapper=[...document.querySelectorAll('.d-select-wrapper')].find(el=>/内容类型声明|AI合成内容|虚构演绎|营销广告|内容来源声明/.test(el.innerText||el.textContent||''));const clear=wrapper?.querySelector('.d-select-clear,[class*="clear"]');if(!clear)return {ok:false,reason:'xiaohongshu content declaration cannot be safely cleared'};const r=clear.getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2}})()`);if(!cleared.ok)return cleared;await click([cleared.x,cleared.y],{label:'clear xhs content declaration'});}else{await click([opened.x,opened.y],{label:'open xhs content declaration'});await wait(.75);const option=await js(String.raw`((label) => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>10&&r.height>10&&s.display!=='none'&&s.visibility!=='hidden'};const el=[...document.querySelectorAll('div,span')].filter(visible).filter(el=>compact(el.innerText||el.textContent||'')===label).sort((a,b)=>{const ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();return ar.width*ar.height-br.width*br.height})[0];if(!el)return {ok:false,reason:'xiaohongshu requested content declaration option missing'};const target=el.closest('.d-select-option,.custom-option,.d-grid-item')||el;const r=target.getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2}})(${JSON.stringify(xhsExpectedContentType)})`);if(!option.ok)return option;await click([option.x,option.y],{label:'select xhs AI declaration'});}
   await wait(1);const after=await inspectXiaohongshu();return {ok:after.gates.contentType.ok,evidence:after.gates.contentType.evidence};
 }
 
-async function ensureXhsVisibility(){const before=await inspectXiaohongshu();if(before.gates.visibility.ok)return {ok:true,already:true};const control=await js(String.raw`(() => {const el=document.querySelector('.permission-card-select');if(!el)return {ok:false,reason:'xiaohongshu visibility control missing'};el.scrollIntoView({block:'center'});const r=el.getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2}})()`);if(!control.ok)return control;await click([control.x,control.y],{label:'open xhs visibility'});await wait(.5);const option=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>10&&r.height>10&&s.display!=='none'&&s.visibility!=='hidden'};const el=[...document.querySelectorAll('.custom-option')].filter(visible).find(el=>compact(el.innerText||el.textContent||'')==='公开可见');if(!el)return {ok:false,reason:'xiaohongshu public visibility option missing'};const r=el.getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2}})()`);if(!option.ok)return option;await click([option.x,option.y],{label:'select xhs public visibility'});await wait(1);const after=await inspectXiaohongshu();return {ok:after.gates.visibility.ok,evidence:after.gates.visibility.evidence}}
+async function ensureXhsVisibility(currentGate=null){const gate=currentGate||(await inspectXiaohongshu()).gates.visibility;if(gate.ok)return {ok:true,already:true};const control=await js(String.raw`(() => {const el=document.querySelector('.permission-card-select');if(!el)return {ok:false,reason:'xiaohongshu visibility control missing'};el.scrollIntoView({block:'center'});const r=el.getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2}})()`);if(!control.ok)return control;await click([control.x,control.y],{label:'open xhs visibility'});await wait(.5);const option=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>10&&r.height>10&&s.display!=='none'&&s.visibility!=='hidden'};const el=[...document.querySelectorAll('.custom-option')].filter(visible).find(el=>compact(el.innerText||el.textContent||'')==='公开可见');if(!el)return {ok:false,reason:'xiaohongshu public visibility option missing'};const r=el.getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2}})()`);if(!option.ok)return option;await click([option.x,option.y],{label:'select xhs public visibility'});await wait(1);const after=await inspectXiaohongshu();return {ok:after.gates.visibility.ok,evidence:after.gates.visibility.evidence}}
 
-async function ensureXhsSchedule(){
-  const before=await inspectXiaohongshu();if(before.gates.schedule.ok)return {ok:true,already:true,evidence:before.gates.schedule.evidence};
+async function ensureXhsSchedule(currentGate=null){
+  const gate=currentGate||(await inspectXiaohongshu()).gates.schedule;if(gate.ok)return {ok:true,already:true,evidence:gate.evidence};
   const target=await locateXhsSwitch('定时发布');if(!target.ok)return target;const expectedEnabled=xhsPublish.mode==='scheduled';if(target.enabled!==expectedEnabled){await click([target.x,target.y],{label:expectedEnabled?'enable xhs scheduled publish':'disable xhs scheduled publish'});await wait(1)}
   if(expectedEnabled){const input=await js(String.raw`(() => {const el=document.querySelector('.date-picker-container input.d-text,.custom-date-picker-44 input.d-text');if(!el)return {ok:false,reason:'xiaohongshu scheduled datetime input missing'};el.scrollIntoView({block:'center'});el.focus();el.select();const r=el.getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2}})()`);if(!input.ok)return input;await typeText(xhsPublish.publishAt);await pressKey('Enter').catch(()=>{});await js(String.raw`(() => {document.querySelector('.publish-page-content-settings-header')?.click();return true})()`);await wait(1)}
   const after=await inspectXiaohongshu();return {ok:after.gates.schedule.ok,evidence:after.gates.schedule.evidence};
 }
 
-async function ensureXhsDefaultExtras(){const state=await inspectXiaohongshu();return state.gates.defaults.ok?{ok:true,already:true,evidence:state.gates.defaults.evidence}:{ok:false,reason:'xiaohongshu optional components or activities are not at default',evidence:state.gates.defaults.evidence}}
+async function ensureXhsDefaultExtras(currentGate=null){const gate=currentGate||(await inspectXiaohongshu()).gates.defaults;return gate.ok?{ok:true,already:true,evidence:gate.evidence}:{ok:false,reason:'xiaohongshu optional components or activities are not at default',evidence:gate.evidence}}
 
 async function uploadXhsCover() {
   if (!xhsCustomCover) return { ok: true, skipped: true };
@@ -413,12 +413,13 @@ async function prefillXiaohongshu(){
   const before=await inspectXiaohongshu();if(!before.gates.authenticated.ok)return {...before,blocker:typedBlocker('AUTH_REQUIRED','小红书登录态无效或遇到安全验证',{requiresUser:true,evidence:before.gates.authenticated.evidence})};if(!before.gates.draftIdentity.ok)return {...before,blocker:typedBlocker('FOREIGN_DRAFT','小红书当前编辑器属于其他视频草稿',{evidence:before.gates.draftIdentity.evidence})};if(!before.gates.noBlockingDialog.ok)return {...before,blocker:typedBlocker('STATE_AMBIGUOUS','小红书预填前存在阻塞弹窗',{retryable:true,evidence:before.gates.noBlockingDialog.evidence})};
   const actions={};if(!before.gates.title.ok){actions.title=await setNativeInputValue('input[placeholder*="填写标题"]',xhsTitle);if(!actions.title.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED','小红书标题没有写入',{evidence:actions.title})}}
   const current=await inspectXiaohongshu();if(!current.gates.description.ok||!current.gates.tags.ok){actions.content=await rebuildXhsTopics();if(!actions.content.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.content.reason,{evidence:actions.content})}}
-  actions.original=await ensureXhsOriginalPolicy();if(!actions.original.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.original.reason,{evidence:actions.original})};
-  actions.pkCover=await ensureXhsPkCoverOff();if(!actions.pkCover.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.pkCover.reason,{evidence:actions.pkCover})};
-  actions.contentType=await ensureXhsContentType();if(!actions.contentType.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.contentType.reason,{evidence:actions.contentType})};
-  actions.defaults=await ensureXhsDefaultExtras();if(!actions.defaults.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('STATE_AMBIGUOUS',actions.defaults.reason,{evidence:actions.defaults})};
-  actions.visibility=await ensureXhsVisibility();if(!actions.visibility.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.visibility.reason,{evidence:actions.visibility})};
-  actions.schedule=await ensureXhsSchedule();if(!actions.schedule.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.schedule.reason,{evidence:actions.schedule})};
+  const formState=actions.content?.verifiedGates?{gates:actions.content.verifiedGates}:current;
+  actions.original=await ensureXhsOriginalPolicy(formState.gates.original);if(!actions.original.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.original.reason,{evidence:actions.original})};
+  actions.pkCover=await ensureXhsPkCoverOff(formState.gates.pkCover);if(!actions.pkCover.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.pkCover.reason,{evidence:actions.pkCover})};
+  actions.contentType=await ensureXhsContentType(formState.gates.contentType);if(!actions.contentType.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.contentType.reason,{evidence:actions.contentType})};
+  actions.defaults=await ensureXhsDefaultExtras(formState.gates.defaults);if(!actions.defaults.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('STATE_AMBIGUOUS',actions.defaults.reason,{evidence:actions.defaults})};
+  actions.visibility=await ensureXhsVisibility(formState.gates.visibility);if(!actions.visibility.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.visibility.reason,{evidence:actions.visibility})};
+  actions.schedule=await ensureXhsSchedule(formState.gates.schedule);if(!actions.schedule.ok)return {...(await inspectXiaohongshu()),blocker:typedBlocker('ACTION_FAILED',actions.schedule.reason,{evidence:actions.schedule})};
   return {...(await inspectXiaohongshu()),actions};
 }
 
@@ -430,17 +431,18 @@ async function mutateXiaohongshu() {
   const afterTitle = await inspectXiaohongshu();
   if (!afterTitle.gates.description.ok||!afterTitle.gates.tags.ok) actions.content = await rebuildXhsTopics();
   if (actions.content && !actions.content.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.content.reason, { evidence: actions.content }) };
-  actions.original = await ensureXhsOriginalPolicy();
+  const formState=actions.content?.verifiedGates?{gates:actions.content.verifiedGates}:afterTitle;
+  actions.original = await ensureXhsOriginalPolicy(formState.gates.original);
   if (!actions.original.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.original.reason, { evidence: actions.original }) };
-  actions.pkCover = await ensureXhsPkCoverOff();
+  actions.pkCover = await ensureXhsPkCoverOff(formState.gates.pkCover);
   if (!actions.pkCover.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.pkCover.reason, { evidence: actions.pkCover }) };
-  actions.contentType = await ensureXhsContentType();
+  actions.contentType = await ensureXhsContentType(formState.gates.contentType);
   if (!actions.contentType.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.contentType.reason, { evidence: actions.contentType }) };
-  actions.defaults = await ensureXhsDefaultExtras();
+  actions.defaults = await ensureXhsDefaultExtras(formState.gates.defaults);
   if (!actions.defaults.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('STATE_AMBIGUOUS', actions.defaults.reason, { evidence: actions.defaults }) };
-  actions.visibility = await ensureXhsVisibility();
+  actions.visibility = await ensureXhsVisibility(formState.gates.visibility);
   if (!actions.visibility.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.visibility.reason, { evidence: actions.visibility }) };
-  actions.schedule = await ensureXhsSchedule();
+  actions.schedule = await ensureXhsSchedule(formState.gates.schedule);
   if (!actions.schedule.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.schedule.reason, { evidence: actions.schedule }) };
   actions.cover = await uploadXhsCover();
   if (!actions.cover.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('PLATFORM_REJECTED_ASSET', actions.cover.reason, { retryable: true, evidence: actions.cover }) };

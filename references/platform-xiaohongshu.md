@@ -30,6 +30,8 @@ Clear the body editor completely, insert the exact concise description, and crea
 
 Under sustained browser load, the decoration may appear while the candidate panel remains empty. Verify the exact trailing query, poll the exact row for a finite extended window, and if it never appears clear the entire topic editor and retry the whole requested set. Use at most three whole-set attempts; never preserve a half-built set or accept plain text after an empty candidate response.
 
+Candidate appearance and committed-anchor verification use bounded 200ms state polling. Do not restore the former fixed 1.2-second waits around every topic.
+
 After an Ego restart, the selected Xiaohongshu tab may report `document.visibilityState: hidden` even though its DOM is readable. Hidden-page timer throttling can delay a real topic candidate response far beyond the bounded wait. Immediately before a serialized topic rebuild, bring the page to front, set its web lifecycle to `active`, enable focus emulation, and prove `visible` plus `document.hasFocus()`. Do not add longer blind waits to compensate for a hidden lifecycle.
 
 Spaces terminate Xiaohongshu topic input. When a readable package label contains whitespace, query the compact form (for example `AI Agent` -> `AIAgent`) and accept it only when the committed entity's `data-topic.name`, normalized without whitespace, matches the requested label. Preserve the readable package label in evidence. Never accept compact plain text as a substitute for an entity.
@@ -106,3 +108,5 @@ On 2026-08-26, a real 435 MB video run verified the current interface defaults a
 A subsequent real 201.6 MB 1080×1920 run accepted the persistent overlap path end to end in about 36.7 seconds. `uploadStart` recorded `mode: injected` at 0%; exact title, concise description, four native topic entities, non-AI/no-original defaults, and every optional-setting gate were already verified while upload remained at 36% with roughly 19 seconds left. Lightweight completion wait, independent verify, and automatic publish then returned `发布成功` and the success URL. No reinjection or post-upload metadata repair occurred.
 
 A later real two-platform 230.5 MB run proved Xiaohongshu and WeChat Channels can inject in parallel, prefill serially while both transfers continue, wait and verify in parallel, and publish from one shared job. Xiaohongshu returned `发布成功`; its terminal published state is protected from all later retry phases when the other platform still needs recovery.
+
+For the 82 MB optimization sample, the final stable code reached dual-platform READY in about 30 seconds with Xiaohongshu native topics complete. Combined with the same sample's measured 9.2-second serial publish stage, the healthy equivalent end-to-end path is about 39.2 seconds.

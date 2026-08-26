@@ -77,6 +77,8 @@ await cdp('Emulation.setFocusEmulationEnabled', { enabled: true })
 
 A task-space tab can report `hasFocus: true` while `document.visibilityState` is still `hidden`. In that state, `页面初始化中`, uploads, Vue transitions, and dialog cleanup may stall. The adapter repeats lifecycle activation while waiting; do not replace this with blind reload loops.
 
+Selecting an existing platform tab uses 150ms bounded readiness probes for a valid viewport, expected host, and a real platform shell marker. Do not restore a fixed post-switch sleep; an apparently valid viewport without the upload/form shell is not ready.
+
 ## Real Input Versus DOM State
 
 Use framework-aware input events for plain controlled fields. For fragile rich editors or chip inputs, prefer a real focus/click plus CDP text insertion and real key events.

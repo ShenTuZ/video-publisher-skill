@@ -100,6 +100,12 @@ Default `wechatLink.type` to `none` and leave `选择链接` untouched. Override
 
 The live product flow has two entry steps: select link type `商品`, then click `选择需要添加的商品` to open the table. A selected row must be committed with `添加(n)`, followed by the `选择商品出现时机` dialog. When the user gives no timing override, keep the platform default `视频播放5秒后出现` and click `确认`. The product gate must fail while either `选择链接` or `选择需要添加的商品` remains visible.
 
+Current accounts may expose a radio in each product row and a plain `添加` footer instead of an in-row button plus `添加(n)`. Support both shapes. Poll the row, enabled add action, delayed timing dialog, final product text, and dialog fade-out at 200ms intervals with finite bounds. A selected main-link title is not sufficient while either product dialog remains active.
+
+The Wujie link component has a real-tested click-through mismatch: pointer release during its animated transitions can activate adjacent `红包封面`. Invoke the platform's own click handlers only for opening the type menu, selecting exact `商品`, and opening `选择需要添加的商品`. Continue the product-table radio, add, timing, and verification steps through real pointer actions.
+
+The 82 MB dual-platform optimization sample confirmed the first product as `GPT实战营…` through the radio/plain-add UI. The final stable preparation path reached both platforms READY in about 30 seconds; the previously measured serial publish stage for the same sample was about 9.2 seconds.
+
 ## Video Label
 
 Default `wechatAiGenerated` to false and select `无需标注`. Set it to true and select `含AI生成内容` only when the user explicitly says the video contains AI-generated content, then independently verify the selected `.select-display` text.

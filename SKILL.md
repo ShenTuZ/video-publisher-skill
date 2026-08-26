@@ -58,6 +58,8 @@ When Xiaohongshu or WeChat Channels is the only selected platform, use its persi
 
 Persist the exact task-space name with its numeric id. A recycled id whose live name differs belongs to another job. Accepted cover receipts use atomic fingerprint- and task-space-bound checkpoints. State keeps a one-generation atomic backup; a corrupt primary may recover only from a fingerprint-matching backup and still requires fresh verification.
 
+Each persisted phase history may include backward-compatible `timing` evidence with `startedAt`, `finishedAt`, and `durationMs` for performance regression analysis.
+
 ## Browser Rules
 
 - Use `ego-browser`; do not fall back to Chrome control.

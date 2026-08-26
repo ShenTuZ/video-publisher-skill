@@ -24,7 +24,9 @@ test("Xiaohongshu topics start through the native editor command", () => {
   assert.ok(bareQuery > explicitFocus, "only the bare topic query may be inserted after refocus");
   assert.doesNotMatch(topicFlow, /Input\.insertText', \{ text: `#\$\{queryTag\}` \}/);
   assert.match(topicFlow, /rebuildAttempt<=3/, "candidate failures must retry the whole exact topic set with a finite bound");
-  assert.match(topicFlow, /attempt < 12/, "each native suggestion request must get a bounded high-load wait window");
+  assert.match(topicFlow, /attempt < 30/, "each native suggestion request must keep a bounded event-driven wait window");
+  assert.match(topicFlow, /await wait\(\.2\)/, "topic candidates and commits must use short state polling");
+  assert.doesNotMatch(topicFlow, /await wait\(1\.2\)/, "topic success path must not use the former fixed waits");
   assert.match(source, /const xhsOriginal = pkg\.xhsOriginal === true/);
   assert.match(source, /async function ensureXhsOriginalPolicy\(/);
   assert.match(source, /xhsOriginal\s*\?\s*\(state\.originalEnabled/);
@@ -66,6 +68,10 @@ test("Ego task-space selection rejects a recycled id with another name", () => {
   assert.match(selection, /activeTaskSpace\.name !== taskName/);
   assert.match(selection, /reason: 'task_space_identity_mismatch'/);
   assert.match(selection, /activeTaskSpace = await useOrCreateTaskSpace\(taskName\)/);
+  const tabSelection = source.slice(source.indexOf("async function selectPlatformTab"), source.indexOf("async function armFinalPublishGuard"));
+  assert.match(tabSelection, /attempt<21/);
+  assert.match(tabSelection, /await wait\(\.15\)/);
+  assert.doesNotMatch(tabSelection, /await wait\(1\.5\)/);
 });
 
 test("WeChat per-video controls are verified without touching location or collection", () => {
@@ -92,7 +98,7 @@ test("WeChat per-video controls are verified without touching location or collec
   assert.match(source, /wechat first selectable product missing/);
   assert.match(source, /停业中\|不可添加\|已失效\|暂无商品/);
   assert.match(source, /选择需要添加的商品/);
-  assert.match(source, /\^添加\\\(\\d\+\\\)\$/);
+  assert.ok(source.includes("^添加(?:\\(\\d+\\))?$"), "product footer must support both 添加 and 添加(n)");
   assert.match(source, /选择商品出现时机/);
   assert.match(source, /phase==='inject'/);
   assert.match(source, /phase==='prepare'/);
@@ -112,6 +118,11 @@ test("WeChat per-video controls are verified without touching location or collec
   assert.match(source, /authorizeFinalPublishGuard\(\)/, "final publish must pass through the READY-gated guard authorization");
   assert.match(source, /publishReceipt:\{confirmed:true/, "final publish must return explicit success evidence");
   assert.match(source, /wechatOriginal\?'声明原创':'直接发表'/, "final originality upsell must follow the package originality intent");
+  const productFlow=source.slice(source.indexOf("async function ensureWechatProductLink"),source.indexOf("async function ensureWechatOriginalPolicy"));
+  assert.match(productFlow, /interval=\.2/);
+  assert.match(productFlow, /stable product option disappeared/);
+  assert.match(productFlow, /el\.click\(\);return \{ok:true,native:true\}/);
+  assert.doesNotMatch(productFlow, /await wait\((1|2)\)/, "product success path must use state polling instead of fixed waits");
 
   const order = ["actions.textFields", "actions.activity", "actions.schedule", "actions.aiLabel", "actions.productLink"]
     .map(token => mutation.indexOf(token));

@@ -73,15 +73,24 @@ async function selectPlatformTab() {
   } else {
     await openOrReuseTab(PLATFORM_URLS[platform], { wait: true, timeout: 45 });
   }
-  await wait(1.5);
-  const info = await pageInfo();
+  const readyStartedAt=Date.now();
+  let info=null;
+  for(let attempt=0;attempt<21;attempt+=1){
+    info=await pageInfo();
+    if(info?.dialog)break;
+    const viewportReady=info&&info.w>=300&&info.h>=300&&PLATFORM_HOSTS[platform].test(String(info.url||''));
+    let shellReady=false;
+    if(viewportReady){shellReady=await js(String.raw`((platform) => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const roots=[document,...[...document.querySelectorAll('*')].map(el=>el.shadowRoot).filter(Boolean)];const text=compact(roots.map(root=>root.body?.innerText||root.host?.innerText||'').join('\n'));if(platform==='xiaohongshu')return roots.flatMap(root=>[...root.querySelectorAll('input[type=file]')]).some(el=>/video|mp4|mov|mkv/i.test(el.accept||''))||(/视频文件/.test(text)&&/发布笔记/.test(text));if(platform==='wechat_channels')return roots.flatMap(root=>[...root.querySelectorAll('input[type=file]')]).some(el=>/video/.test(el.accept||''))||/视频管理\s*\/\s*发表动态|发表动态/.test(text);return text.length>20})(${JSON.stringify(platform)})`).catch(()=>false)}
+    if(viewportReady&&shellReady)break;
+    if(attempt<20)await wait(.15);
+  }
   if (info?.dialog) {
     return { ok: false, blocker: typedBlocker('STATE_AMBIGUOUS', `浏览器原生弹窗阻塞页面: ${info.dialog.message || 'unknown dialog'}`, { retryable: true, evidence: info.dialog }) };
   }
   if (!info || info.w < 300 || info.h < 300) {
     return { ok: false, blocker: typedBlocker('INPUT_CHANNEL_BROKEN', 'Ego Lite 页面视口不可用', { retryable: true, evidence: info }) };
   }
-  return { ok: true, info };
+  return { ok: true, info, readyWaitMs:Date.now()-readyStartedAt, reused:Boolean(match) };
 }
 
 async function armFinalPublishGuard() {
