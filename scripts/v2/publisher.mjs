@@ -21,7 +21,6 @@ import { runPool, SerialQueue } from "./lib/scheduler.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.join(os.homedir(), ".video-publisher", "v2-jobs");
-const RIGHTS_PLATFORMS = new Set(["xiaohongshu"]);
 const FAST_OVERLAP_PLATFORMS = new Set(["wechat_channels"]);
 const AUTO_PUBLISH_PLATFORMS = new Set(["wechat_channels"]);
 const validators = { xiaohongshu: validateXiaohongshuPackage, douyin: validateDouyinPackage, wechat_channels: validateWechatChannelsPackage };
@@ -127,7 +126,7 @@ async function main() {
       .map(platform => `Package preflight failed for ${platform}: ${preflightErrors[platform].join("; ")}`)
       .join("\n"));
   }
-  const rightsTargets = runnablePlatforms.filter(platform => RIGHTS_PLATFORMS.has(platform) || (platform === "wechat_channels" && pkg.wechatOriginal === true));
+  const rightsTargets = runnablePlatforms.filter(platform => (platform === "xiaohongshu" && pkg.xhsOriginal === true) || (platform === "wechat_channels" && pkg.wechatOriginal === true));
   const standingOriginalityPolicy = args.originalityPolicy === "all_videos_original";
   if (!args.inspectOnly && rightsTargets.length && !standingOriginalityPolicy && !args.originalRightsConfirmed) {
     throw new UsageError(`Originality confirmation is required before browser mutation for: ${rightsTargets.join(", ")}. Complete onboarding with declarations.originalityPolicy=all_videos_original, or confirm this run and add --confirm-original-rights.`);

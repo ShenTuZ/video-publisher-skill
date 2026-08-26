@@ -139,6 +139,7 @@ export function readPackage(packagePath, { config: suppliedConfig } = {}) {
   const wechatAiGenerated = typeof parsed.wechatAiGenerated === "boolean"
     ? parsed.wechatAiGenerated
     : false;
+  const xhsOriginal = parsed.xhsOriginal === true;
   const wechatOriginal = parsed.wechatOriginal === true;
   const wechatPolicies = {
     location: String(parsed.wechatPolicies?.location || config.platforms.wechat_channels.locationPolicy).trim(),
@@ -171,6 +172,7 @@ export function readPackage(packagePath, { config: suppliedConfig } = {}) {
     wechatPublish,
     wechatLink,
     wechatAiGenerated,
+    xhsOriginal,
     wechatOriginal,
     wechatPolicies,
     cover,

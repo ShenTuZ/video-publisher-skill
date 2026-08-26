@@ -91,6 +91,26 @@ test("an existing cover asset needs only its file path and ratio", async () => {
   });
 });
 
+test("Xiaohongshu originality is opt-in and defaults to false", async () => {
+  await withTempDir(async root => {
+    const packagePath = path.join(root, "package.json");
+    await fs.promises.writeFile(packagePath, JSON.stringify({
+      title: "XHS original policy",
+      xhsTopics: ["Test"],
+    }));
+    let pkg = readPackage(packagePath, { config: defaultConfig() });
+    assert.equal(pkg.xhsOriginal, false);
+    await fs.promises.writeFile(packagePath, JSON.stringify({
+      title: "XHS original policy",
+      xhsTopics: ["Test"],
+      xhsOriginal: true,
+    }));
+    pkg = readPackage(packagePath, { config: defaultConfig() });
+    assert.equal(pkg.xhsOriginal, true);
+    assert.deepEqual(validateXiaohongshuPackage(pkg), []);
+  });
+});
+
 test("account defaults fill only fields omitted from the package", async () => {
   await withTempDir(async root => {
     const packagePath = path.join(root, "package.json");

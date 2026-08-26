@@ -15,7 +15,7 @@ If the link points to an already-published creator platform post, treat it as a 
 
 Before any browser upload, verify the local file exists with `ls -lh` or `test -f`, then run `scripts/check-package.mjs` for every selected platform. For Douyin, MP4/M4V/MOV content above the real-tested 15:00 boundary must be rejected before Ego Lite starts; allow at most 0.1 seconds of container-metadata rounding. Ask for a shorter export; never automatically trim or transcode the source. Continue validating the original file for any other selected platforms because this limit is Douyin-specific.
 
-Before selecting Xiaohongshu `原创`, require the standing policy or current-video confirmation. For WeChat, default `wechatOriginal` to false and set it true only when the user explicitly requests originality for the current video; true requires the same one-run rights confirmation. Never infer eligibility from the filename or content. Treat originality separately from final-publish authorization.
+Default both `xhsOriginal` and `wechatOriginal` to false. Set the matching field true only when the user explicitly requests originality for the current video; true requires the applicable standing policy or current-video rights confirmation. Never infer eligibility from the filename or content. Treat originality separately from final-publish authorization.
 
 If the exact path does not exist:
 

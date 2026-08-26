@@ -25,7 +25,7 @@ Current-run instructions override package fields; package fields override config
 
 Default to stopping before the final `发布`, `发布笔记`, or `发表` control. A current-run `--publish-on-ready` instruction or an explicitly configured `execution.autoPublishOnReady: true` authorizes the maintained runner to publish only after every selected platform independently reaches `READY`. Until then, the page-level capture guard remains armed; `READY` requires `guardArmed: true`, `blockedAttempts: 0`, and `finalPublishClicked: false` from fresh page evidence. The later `publish` phase receives a separate orchestrator authorization, permits the exact final action, and requires platform success evidence.
 
-Before enabling Xiaohongshu `原创`, require either the onboarded standing policy or current-video confirmation. WeChat defaults to `wechatOriginal: false`; only an explicit current-run instruction may set it to true, and true requires current-video confirmation before browser work. Never infer originality from the video. Originality remains separate from the optional READY-to-publish policy.
+Xiaohongshu defaults to `xhsOriginal: false` and WeChat defaults to `wechatOriginal: false`. Only an explicit current-video instruction may set either field to true; true requires the applicable standing policy or current-video confirmation before browser mutation. Never infer originality from the video. Originality remains separate from the optional READY-to-publish policy.
 
 Stop only when every selected platform is either ready from fresh evidence or blocked by a typed condition that genuinely requires the user or a later retry. An attempted action is not success; title, tags, declarations, settings, and covers count only after verification.
 
@@ -97,7 +97,7 @@ Use onboarded configuration as defaults, then confirm the exact source, selected
 Platform-native defaults:
 
 ```text
-Xiaohongshu: short title, real topic entities, no prose body by default, original declaration
+Xiaohongshu: short title, real topic entities, no prose body by default, originality off unless explicitly requested
 Douyin: title/body plus 1-5 package-supplied topic entities
 WeChat Channels: description and sanitized short title are prefilled before upload; location is preserved, collection is untouched, and activity remains “不参与活动”
 ```
@@ -123,6 +123,8 @@ WeChat Channels uses a fixed default template. When the user does not mention a 
   "wechatOriginal": false
 }
 ```
+
+Xiaohongshu similarly resolves `xhsOriginal: false` unless the current request explicitly asks to declare originality.
 
 Only explicit current-run instructions override this template. For scheduled videos, use `wechatPublish: { "mode": "scheduled", "publishAt": "YYYY-MM-DD HH:mm" }`. For product-linked videos, use either `wechatLink: { "type": "product", "selection": "search", "query": "product name or id", "expectedName": "exact visible product name" }` or `wechatLink: { "type": "product", "selection": "first" }` when the user explicitly requests the first available product. Set `wechatAiGenerated: true` only when the user says the video contains AI-generated content. Set `wechatOriginal: true` only when the user explicitly says to add/declare originality; otherwise leave the control unchecked. If the product entry or first selectable row is unavailable, return a blocker instead of selecting another link type.
 

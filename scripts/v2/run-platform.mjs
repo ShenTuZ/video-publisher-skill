@@ -67,7 +67,7 @@ if (phase === "publish" && !finalPublishAuthorized) {
   console.error("Final publish phase requires --confirm-final-publish from the orchestrator.");
   process.exit(2);
 }
-const needsOriginalityConfirmation = platform === "xiaohongshu" || (platform === "wechat_channels" && pkg.wechatOriginal === true);
+const needsOriginalityConfirmation = (platform === "xiaohongshu" && pkg.xhsOriginal === true) || (platform === "wechat_channels" && pkg.wechatOriginal === true);
 if (["prepare", "mutate"].includes(phase) && needsOriginalityConfirmation && !standingOriginalityPolicy && !originalRightsConfirmed) {
   console.error(`Originality confirmation is required before ${platform} mutation; set declarations.originalityPolicy=all_videos_original during onboarding, or add --confirm-original-rights after confirming this run.`);
   process.exit(2);

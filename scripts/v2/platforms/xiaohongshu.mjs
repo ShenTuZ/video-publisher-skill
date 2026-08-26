@@ -1,5 +1,6 @@
 const xhsTitle = pkg.platformTitle.xiaohongshu;
 const xhsTopics = pkg.xhsTopics;
+const xhsOriginal = pkg.xhsOriginal === true;
 const xhsVideoName = videoPath.split('/').pop();
 const xhsCustomCover = pkg.cover?.uploadCustomCover === true;
 const xhsCoverPath = String(pkg.cover?.vertical3x4Path || '');
@@ -86,7 +87,9 @@ async function inspectXiaohongshu() {
       tags: state.selected.length === xhsTopics.length && !state.plainResidue.length && !state.duplicate.length
         ? okGate({ requested: xhsTopics, selected: state.selected, topicCounts: state.topicCounts })
         : failedGate({ requested: xhsTopics, selected: state.selected, plainResidue: state.plainResidue, duplicate: state.duplicate, topicCounts: state.topicCounts }),
-      original: state.originalEnabled ? okGate({ enabled: true }) : failedGate({ enabled: false }),
+      original: xhsOriginal
+        ? (state.originalEnabled ? okGate({ expected: true, enabled: true }) : failedGate({ expected: true, enabled: false }))
+        : (!state.originalEnabled ? okGate({ expected: false, enabled: false }) : failedGate({ expected: false, enabled: true })),
       cover: coverOk
         ? okGate({ custom: xhsCustomCover, background: state.coverBg, receipt })
         : failedGate({ custom: xhsCustomCover, background: state.coverBg, receipt, reason: xhsCustomCover && !receipt ? 'custom cover receipt missing' : 'cover not verified' }),
@@ -231,7 +234,7 @@ async function rebuildXhsTopics() {
   return {ok:false,reason:'xiaohongshu exact topics did not commit after bounded whole-set rebuilds',lastFailure:last,attempts};
 }
 
-async function ensureXhsOriginal() {
+async function ensureXhsOriginalPolicy() {
   await removeExactStaleMask(/笔记完成原创声明后|原创声明须知|声明原创/);
   let inspected = await inspectXiaohongshu();
   if (inspected.gates.original.ok) return { ok: true, already: true };
@@ -246,9 +249,9 @@ async function ensureXhsOriginal() {
     target.id='vp2-xhs-original-control';target.scrollIntoView({block:'center',inline:'center'});return {ok:true,selector:'#vp2-xhs-original-control',className:String(target.className||''),tag:target.tagName,role:target.getAttribute?.('role')||''}
   })()`);
   if (!control.ok) return control;
-  await click(control.selector,{label:'enable xhs original declaration'}).catch(()=>{});
+  await click(control.selector,{label:xhsOriginal?'enable xhs original declaration':'disable xhs original declaration'}).catch(()=>{});
   await wait(1.5);
-  const modalResult = await js(String.raw`(() => {
+  const modalResult = xhsOriginal ? await js(String.raw`(() => {
     const modal = [...document.querySelectorAll('.d-modal')].find(el => /笔记完成原创声明后|原创声明须知/.test(el.innerText || el.textContent || ''))
     if (!modal) return { ok: true, modal: false }
     const checkbox = modal.querySelector('.d-checkbox, input[type="checkbox"]')
@@ -257,11 +260,11 @@ async function ensureXhsOriginal() {
     const button = [...modal.querySelectorAll('button')].find(el => String(el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() === '声明原创')
     if (!button || button.disabled) return { ok: false, reason: 'xiaohongshu original confirm disabled' }
     button.click(); return { ok: true, modal: true }
-  })()`);
+  })()`) : { ok: true, modal: false };
   await wait(2);
   await removeExactStaleMask(/笔记完成原创声明后|原创声明须知|声明原创/);
   inspected = await inspectXiaohongshu();
-  return inspected.gates.original.ok ? { ok: true, control, modalResult } : { ok: false, reason: 'xiaohongshu original declaration did not persist', control, modalResult };
+  return inspected.gates.original.ok ? { ok: true, control, modalResult } : { ok: false, reason: 'xiaohongshu original declaration state did not persist', control, modalResult };
 }
 
 async function uploadXhsCover() {
@@ -341,7 +344,7 @@ async function mutateXiaohongshu() {
   const afterTitle = await inspectXiaohongshu();
   if (!afterTitle.gates.tags.ok) actions.tags = await rebuildXhsTopics();
   if (actions.tags && !actions.tags.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.tags.reason, { evidence: actions.tags }) };
-  actions.original = await ensureXhsOriginal();
+  actions.original = await ensureXhsOriginalPolicy();
   if (!actions.original.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('ACTION_FAILED', actions.original.reason, { evidence: actions.original }) };
   actions.cover = await uploadXhsCover();
   if (!actions.cover.ok) return { ...(await inspectXiaohongshu()), blocker: typedBlocker('PLATFORM_REJECTED_ASSET', actions.cover.reason, { retryable: true, evidence: actions.cover }) };

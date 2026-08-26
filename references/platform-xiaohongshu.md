@@ -8,7 +8,7 @@ Read `platform-common.md` and `ego-browser-workflow.md` first.
 short title, maximum 20 codepoints
 real topic entities only
 no prose body unless explicitly requested
-原创声明 enabled for original videos
+原创声明 off unless explicitly requested for the current video
 ```
 
 ## Upload And Identity
@@ -38,9 +38,11 @@ Do not insert `.tiptap-topic` HTML manually.
 
 ## Original Declaration
 
-Open `内容设置`, enable `原创声明`, accept the agreement checkbox when a dialog appears, and click the dialog’s `声明原创` control. That dialog control is not the final publish button.
+Default `xhsOriginal` to false. When false, keep `原创声明` disabled and do not open its agreement dialog. If a reused matching editor is unexpectedly enabled, turn it off and verify the disabled state.
 
-Verify the enabled toggle from a fresh inspection. A click attempt is insufficient.
+Only when the current video explicitly sets `xhsOriginal: true`, open `内容设置`, enable `原创声明`, accept the agreement checkbox when a dialog appears, and click the dialog’s `声明原创` control. That dialog control is not the final publish button, and true still requires the standing rights policy or current-run confirmation.
+
+Verify the exact expected toggle state from a fresh inspection. A click attempt is insufficient.
 
 ## Custom Cover
 
@@ -58,7 +60,7 @@ correct draft identity
 video fully uploaded
 exact title
 exact topic entities with no plain residue
-原创声明 enabled
+原创声明 matches explicit `xhsOriginal`, default false
 custom 3:4 receipt when enabled, otherwise default cover state
 no blocking dialog
 visible enabled 发布 button

@@ -25,6 +25,10 @@ test("Xiaohongshu topics start through the native editor command", () => {
   assert.doesNotMatch(topicFlow, /Input\.insertText', \{ text: `#\$\{queryTag\}` \}/);
   assert.match(topicFlow, /rebuildAttempt<=3/, "candidate failures must retry the whole exact topic set with a finite bound");
   assert.match(topicFlow, /attempt < 12/, "each native suggestion request must get a bounded high-load wait window");
+  assert.match(source, /const xhsOriginal = pkg\.xhsOriginal === true/);
+  assert.match(source, /async function ensureXhsOriginalPolicy\(/);
+  assert.match(source, /xhsOriginal\s*\?\s*\(state\.originalEnabled/);
+  assert.match(source, /label:xhsOriginal\?'enable xhs original declaration':'disable xhs original declaration'/);
 });
 
 test("Douyin preserves committed topic entities while retrying a failed tail query", () => {
