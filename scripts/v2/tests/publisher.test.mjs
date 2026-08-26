@@ -110,7 +110,7 @@ test("fast wrapper retries the same job once after a shared Ego channel failure"
   await fs.promises.writeFile(packagePath,JSON.stringify({videoPath,title:"Wrapper recovery",xhsTopics:["Test"],cover:{uploadCustomCover:false}}));
   const wrapper=path.join(V2_DIR,"..","run-fast-platforms.sh");
   const wrapperSource=await fs.promises.readFile(wrapper,"utf8");
-  assert.match(wrapperSource,/recovery_delays=\(5 10\)/);
+  assert.match(wrapperSource,/recovery_delays=\(5 10 30\)/);
   assert.match(wrapperSource,/item\?\.history.*INPUT_CHANNEL_BROKEN/);
   const result=await run("bash",[wrapper,packagePath,"wrapper-recovery","xiaohongshu","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_BROKEN_ONCE:"xiaohongshu:*",VIDEO_PUBLISHER_V2_MOCK_BROKEN_ONCE_MARKER:markerPath,VIDEO_PUBLISHER_INPUT_RECOVERY_DELAYS:"0,0"}});
   assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);

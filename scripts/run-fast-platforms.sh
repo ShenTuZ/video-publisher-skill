@@ -9,7 +9,7 @@ if [[ $# -lt 1 ]]; then
   exit 2
 fi
 
-recovery_delays=(5 10)
+recovery_delays=(5 10 30)
 if [[ -n "${VIDEO_PUBLISHER_INPUT_RECOVERY_DELAYS:-}" ]]; then
   IFS=',' read -r -a recovery_delays <<< "${VIDEO_PUBLISHER_INPUT_RECOVERY_DELAYS}"
 fi

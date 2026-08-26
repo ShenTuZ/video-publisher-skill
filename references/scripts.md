@@ -43,7 +43,7 @@ scripts/run-fast-platforms.sh \
 
 This is the normal publishing command. Use `--stop-at-ready` only when the user explicitly requests a reviewable draft instead of publication.
 
-Before upload input, the runner performs two serial read-only browser-health inspections for every selected platform, so only one Ego runtime probe is active at a time. A page-status RPC gets up to three short retries before becoming `INPUT_CHANNEL_BROKEN`. This entry detects that typed blocker from the current attempt's state history and retries the same stateful job after 5 seconds and 10 seconds. It never reinjects an active upload; after the second unsuccessful recovery it exits with the saved state and no unverified final publish.
+Before upload input, the runner performs two serial read-only browser-health inspections for every selected platform, so only one Ego runtime probe is active at a time. A page-status RPC gets up to three short retries before becoming `INPUT_CHANNEL_BROKEN`. This entry detects that typed blocker from the current attempt's state history and retries the same stateful job after 5 seconds, 10 seconds, and one final 30-second cooldown. It never reinjects an active upload; after the automatic recoveries are exhausted it exits with the saved state and no unverified final publish.
 
 Short interactive phases (`inspect`, `inject`, `prefill`, `mutate`, `verify`, and `publish`) also terminate their own unresponsive Ego process group after a bounded phase timeout and record the same typed blocker. Long upload/prepare phases retain a 20-minute bound.
 

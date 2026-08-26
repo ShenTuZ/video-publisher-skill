@@ -52,7 +52,7 @@ post-upload repair, declarations, and covers: serial, exactly 1
 final verification: parallel, default 4
 ```
 
-Before an upload input is touched, every selected platform must pass two fresh serial health inspections in its persisted task space. This avoids concurrent Ego runtime probes; each page-status RPC also receives up to three bounded short retries before the channel is treated as broken. Short interactive phases have an owned-process watchdog, while upload-wait phases retain a long bounded limit. Xiaohongshu activates page lifecycle before writing title or topic entities during upload, then requires visible responsive controls without treating an isolated-page focus flag as a failure. Fast adapters then split upload into `inject` and `wait_upload`. Fast mode starts injections serially because Ego's input channel is shared, but each browser upload continues in the background while one serial UI controller fills metadata; completion waiters remain parallel and read-only. Never run two input controllers at once or reinject an active upload. If any runner returns `INPUT_CHANNEL_BROKEN`, wait for siblings, skip remaining mutation, and run only final read-only verification. `run-fast-platforms.sh` automatically retries the same persisted job after 5 seconds and 10 seconds, only for that typed blocker; after two failed recoveries it stops without publishing an unverified platform.
+Before an upload input is touched, every selected platform must pass two fresh serial health inspections in its persisted task space. This avoids concurrent Ego runtime probes; each page-status RPC also receives up to three bounded short retries before the channel is treated as broken. Short interactive phases have an owned-process watchdog, while upload-wait phases retain a long bounded limit. Xiaohongshu activates page lifecycle before writing title or topic entities during upload, then requires visible responsive controls without treating an isolated-page focus flag as a failure. Fast adapters then split upload into `inject` and `wait_upload`. Fast mode starts injections serially because Ego's input channel is shared, but each browser upload continues in the background while one serial UI controller fills metadata; completion waiters remain parallel and read-only. Never run two input controllers at once or reinject an active upload. If any runner returns `INPUT_CHANNEL_BROKEN`, wait for siblings, skip remaining mutation, and run only final read-only verification. `run-fast-platforms.sh` automatically retries the same persisted job after 5 seconds, 10 seconds, and a final 30-second cooldown, only for that typed blocker; after those automatic recoveries it stops without publishing an unverified platform.
 
 When Xiaohongshu or WeChat Channels is the only selected platform, use its persistent `prepare` runner. One Ego process inspects, injects, prefills while upload continues, waits, and repairs the draft; a separate read-only `verify` runner must still re-read every gate. Multi-platform jobs retain the split phase scheduler so one platform never blocks the others.
 
@@ -65,7 +65,7 @@ Each persisted phase history may include backward-compatible `timing` evidence w
 - Use `ego-browser`; do not fall back to Chrome control.
 - Verify exact local video and cover paths before opening creator pages.
 - Reuse a draft only when its identity matches the package.
-- Leave task spaces open by default for human review.
+- Close task spaces after confirmed formal publication; leave them open only for a user-requested reviewable draft or required human action.
 - If Ego reports user takeover, stop all browser work and resume only after explicit confirmation.
 
 Read `references/ego-browser-workflow.md` before browser diagnosis or adapter changes.
@@ -94,7 +94,7 @@ publish: after READY only, authorize the guarded final action and verify success
 
 ## Content Package
 
-Use onboarded configuration as defaults, then confirm the exact source, selected platforms, title, tags, unresolved rights status, and existing-cover intent. Newlines in JSON fields must be real newline characters.
+Use onboarded configuration as defaults and build the package autonomously from the exact source plus its sidecar transcript/captions. Do not ask the user to approve generated title, description, tags, or the configured platform set before browser work; report the resolved package as progress instead. Pause only for a material unresolved choice: exact source ambiguity, an originality declaration, a scheduled video without an exact time, a product request without a first-row instruction or exact search target, a requested custom cover without its asset, or authentication/risk-control/user-control state. Newlines in JSON fields must be real newline characters.
 
 Platform-native defaults:
 
@@ -161,13 +161,14 @@ Generate a meaningful WeChat short-title summary of at most 10 Unicode character
 2. Identify the exact source and any subtitle variant.
 3. Build each platform package from its fixed defaults, apply only the user's explicit changes, then confirm the package and selected platforms.
 4. Validate supplied cover assets and every platform package.
-5. Run two fresh browser-health inspections before any upload injection.
-6. For Xiaohongshu-only or WeChat-only work, run one persistent prepare session; otherwise serially start missing uploads and prove each fast upload has started.
-7. While browser uploads continue, fill metadata through one serial UI controller.
-8. Wait for upload completion in parallel without further input, then repair remaining post-upload fields and covers.
-9. In fast mode, publish each READY platform immediately; run a full independent verification only under `--strict`.
-10. On a shared Ego input-channel failure, retry only the same persisted job with bounded 5-second and 10-second backoff; stop after that limit.
-11. Stop at READY by default. When the user explicitly enabled automatic publishing, require each platform's own success evidence.
+5. Resolve title, descriptions, short title, and real topics from the source context without requesting approval when no material choice is unresolved.
+6. Run two fresh browser-health inspections before any upload injection.
+7. For Xiaohongshu-only or WeChat-only work, run one persistent prepare session; otherwise serially start missing uploads and prove each fast upload has started.
+8. While browser uploads continue, fill metadata through one serial UI controller.
+9. Wait for upload completion in parallel without further input, then repair remaining post-upload fields and covers.
+10. In fast mode, publish each READY platform immediately; run a full independent verification only under `--strict`.
+11. On a shared Ego input-channel failure, retry only the same persisted job with bounded 5-second, 10-second, and 30-second backoff; stop after that limit.
+12. After confirmed formal publication, close the isolated task spaces unless the user asked to review the live page. Stop at READY only when the user explicitly requests a draft/reviewable run.
 
 Read-only inspection:
 

@@ -84,23 +84,22 @@ WeChat Channels: both 3:4 portrait and 4:3 landscape
 Douyin: both 3:4 portrait and 4:3 landscape
 ```
 
-## Proposal Shape
+## Autonomous Intake
 
-When the user has not provided title and tags:
+Once onboarding is complete, a local video path or directory is enough for an ordinary run. Inspect its sidecar transcript/captions, derive platform-native title, description, short title, and real topic entities, apply the configured default platforms, then validate and publish according to the standing policy. Treat the resulting package as an execution brief, not a user approval gate.
+
+Ask only when the answer changes an external or legal outcome and cannot be discovered safely:
 
 ```text
-我先根据视频内容拟一个发布包：
-
-视频:
-建议标题:
-建议 tags:
-抖音 topics:
-平台差异:
-
-你觉得合适吗？可以直接改标题或 tag。
+the exact source file is ambiguous or missing
+the user asks for original declaration but has not confirmed rights
+a scheduled request lacks YYYY-MM-DD HH:mm
+a product request lacks “第一个” or an exact searchable product target
+a requested custom cover asset is absent
+login, captcha, risk-control, or user task-space control appears
 ```
 
-After the user approves title and tags, ask for platform selection from `availablePlatforms`, proposing `defaultPlatforms`. Mention that existing-cover upload is skipped by default.
+For a normal request, report the resolved title/topics/platform differences in progress and proceed. Existing-cover upload remains off unless the user explicitly supplies and enables cover assets.
 
 ## Final Package
 
