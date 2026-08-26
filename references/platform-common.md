@@ -55,6 +55,8 @@ verify: fresh independent observation using stored receipts
 publish: separately authorized final action after READY, with success evidence
 ```
 
+Short interactive phases have owned-process watchdogs. They return `INPUT_CHANNEL_BROKEN` on timeout and preserve the job for ordinary same-job recovery; upload-wait and persistent prepare remain separately bounded for long uploads.
+
 Removed legacy modes must not reappear: `fill`, `check-only`, `repair-only`, and `upload-only`.
 
 ## Upload Truth

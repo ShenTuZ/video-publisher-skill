@@ -228,18 +228,29 @@ async function inspectBlockingDialogs(allowPatterns = []) {
 }
 
 async function setNativeInputValue(selector, value) {
-  return await js(String.raw`((selector, value) => {
-    const el = document.querySelector(selector)
-    if (!el) return { ok: false, reason: 'input missing', selector }
-    const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype
-    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set
-    if (!setter) return { ok: false, reason: 'native value setter missing' }
-    el.focus(); setter.call(el, value)
-    el.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: value }))
-    el.dispatchEvent(new Event('change', { bubbles: true, composed: true }))
-    el.blur()
-    return { ok: el.value === value, value: el.value }
-  })(${JSON.stringify(selector)}, ${JSON.stringify(value)})`);
+  const attempts=[];
+  for(let attempt=1;attempt<=2;attempt+=1){
+    try {
+      const responsive=await js(String.raw`((selector) => {const el=document.querySelector(selector);if(!el)return {ok:false,reason:'input missing',selector};const rect=el.getBoundingClientRect(),style=getComputedStyle(el);return {ok:rect.width>8&&rect.height>8&&style.display!=='none'&&style.visibility!=='hidden'&&document.visibilityState==='visible',width:rect.width,height:rect.height,visibility:document.visibilityState}})(${JSON.stringify(selector)})`);
+      if(!responsive.ok){attempts.push({attempt,responsive});if(attempt<2)await wait(.35);continue;}
+      const result=await js(String.raw`((selector, value) => {
+        const el = document.querySelector(selector)
+        if (!el) return { ok: false, reason: 'input missing', selector }
+        const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype
+        const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set
+        if (!setter) return { ok: false, reason: 'native value setter missing' }
+        el.focus(); setter.call(el, value)
+        el.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: value }))
+        el.dispatchEvent(new Event('change', { bubbles: true, composed: true }))
+        el.blur()
+        return { ok: el.value === value, value: el.value }
+      })(${JSON.stringify(selector)}, ${JSON.stringify(value)})`);
+      if(result.ok)return {...result,attempt,attempts};
+      attempts.push({attempt,result});
+    } catch(error) { attempts.push({attempt,reason:String(error?.message||error)}); }
+    if(attempt<2)await wait(.35);
+  }
+  return {ok:false,reason:'native input did not persist after responsive retries',attempts};
 }
 
 async function removeExactStaleMask(textPattern) {

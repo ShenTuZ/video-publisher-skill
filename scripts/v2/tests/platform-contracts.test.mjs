@@ -34,6 +34,9 @@ test("Xiaohongshu topics start through the native editor command", () => {
   for (const name of ["startXhsUpload", "waitXhsUploadOnly", "prefillXiaohongshu", "prepareXiaohongshu", "ensureXhsPkCoverOff", "ensureXhsContentType", "ensureXhsDefaultExtras", "ensureXhsVisibility", "ensureXhsSchedule", "publishXiaohongshu"]) {
     assert.match(source, new RegExp(`async function ${name}\\(`));
   }
+  assert.match(source, /async function ensureXhsPrefillResponsive\(/);
+  assert.match(source, /responsiveBeforeTitle/);
+  assert.match(source, /responsiveBeforeContent/);
   assert.match(source, /笔记含AI合成内容/);
   assert.match(source, /accept_terms/);
   assert.match(source, /original confirmation dialog did not close/);
@@ -93,6 +96,9 @@ test("Ego task-space selection rejects a recycled id with another name", () => {
   assert.match(tabSelection, /pageInfoErrors>=3/);
   assert.match(tabSelection, /await wait\(\.2\)/);
   assert.doesNotMatch(tabSelection, /await wait\(1\.5\)/);
+  assert.match(source, /async function setNativeInputValue/);
+  assert.match(source, /native input did not persist after responsive retries/);
+  assert.match(source, /for\(let attempt=1;attempt<=2;attempt\+=1\)/);
 });
 
 test("WeChat per-video controls are verified without touching location or collection", () => {

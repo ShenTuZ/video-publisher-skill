@@ -79,6 +79,8 @@ A task-space tab can report `hasFocus: true` while `document.visibilityState` is
 
 Selecting an existing platform tab uses 150ms bounded readiness probes for a valid viewport, expected host, and a real platform shell marker. A transient `pageInfo` RPC failure receives at most three 200ms retries before returning `INPUT_CHANNEL_BROKEN`. Do not restore a fixed post-switch sleep; an apparently valid viewport without the upload/form shell is not ready.
 
+`inspect`, `inject`, `prefill`, `mutate`, `verify`, and `publish` run with owned-process time limits. A timeout terminates that unresponsive Ego process group and returns structured `INPUT_CHANNEL_BROKEN` evidence; long upload/prepare phases retain their own 20-minute bounded limit. Do not manually kill a phase when this watchdog is active.
+
 ## Real Input Versus DOM State
 
 Use framework-aware input events for plain controlled fields. For fragile rich editors or chip inputs, prefer a real focus/click plus CDP text insertion and real key events.

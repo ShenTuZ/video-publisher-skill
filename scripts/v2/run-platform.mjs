@@ -25,20 +25,47 @@ const platformFiles = {
   douyin: "douyin.mjs",
   wechat_channels: "wechat-channels.mjs",
 };
+const PHASE_TIMEOUT_MS = Object.freeze({
+  inspect: 45_000,
+  inject: 45_000,
+  prefill: 45_000,
+  mutate: 60_000,
+  verify: 45_000,
+  publish: 45_000,
+  wait_upload: 20 * 60_000,
+  upload: 20 * 60_000,
+  prepare: 20 * 60_000,
+});
 
 function usage() {
   return "Usage: run-platform.mjs <platform> <package.json> <inspect|prepare|inject|prefill|wait_upload|upload|mutate|verify|publish> [task-suffix] [task-space-id] [--confirm-original-rights] [--confirm-final-publish]";
 }
 
-function runEgo(script) {
+function runEgo(script, timeoutMs) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.env.VIDEO_PUBLISHER_V2_EGO_COMMAND || "ego-browser", ["nodejs"], { stdio: ["pipe", "pipe", "pipe"] });
+    const detached = process.platform !== "win32";
+    const child = spawn(process.env.VIDEO_PUBLISHER_V2_EGO_COMMAND || "ego-browser", ["nodejs"], { stdio: ["pipe", "pipe", "pipe"], detached });
     let stdout = "";
     let stderr = "";
+    let timedOut = false;
+    let closed = false;
+    const terminate = signal => {
+      if (detached) {
+        try { process.kill(-child.pid, signal); return; } catch {}
+      }
+      child.kill(signal);
+    };
+    const timer = setTimeout(() => {
+      timedOut = true;
+      terminate("SIGTERM");
+      const forceKill = setTimeout(() => { if (!closed) terminate("SIGKILL"); }, 1_000);
+      forceKill.unref?.();
+    }, timeoutMs);
+    timer.unref?.();
     child.stdout.on("data", chunk => { stdout += chunk; });
     child.stderr.on("data", chunk => { stderr += chunk; });
-    child.on("error", reject);
-    child.on("close", code => resolve({ code: code ?? 1, stdout, stderr }));
+    child.on("error", error => { clearTimeout(timer); reject(error); });
+    child.on("close", (code, signal) => { closed = true; clearTimeout(timer); resolve({ code: code ?? 1, signal: signal || null, stdout, stderr, timedOut, timeoutMs }); });
     child.stdin.end(script);
   });
 }
@@ -74,6 +101,10 @@ if (["prepare", "mutate"].includes(phase) && needsOriginalityConfirmation && !st
   process.exit(2);
 }
 if (!fs.existsSync(pkg.videoPath)) throw new Error(`Video file not found: ${pkg.videoPath}`);
+const timeoutOverride = Number(process.env.VIDEO_PUBLISHER_V2_PHASE_TIMEOUT_MS || "");
+const phaseTimeoutMs = Number.isFinite(timeoutOverride) && timeoutOverride > 0
+  ? Math.floor(timeoutOverride)
+  : PHASE_TIMEOUT_MS[phase];
 
 const header = [
   'import fs from "node:fs";',
@@ -102,7 +133,7 @@ const releasePlatformLock = acquirePlatformLock(platform, phase);
 let execution;
 try {
   try {
-    execution = await runEgo(fragments);
+    execution = await runEgo(fragments, phaseTimeoutMs);
   } catch (error) {
     execution = { code: 1, stdout: "", stderr: String(error?.stack || error) };
   }
@@ -120,7 +151,7 @@ try {
     console.error(detail);
     throw error;
   }
-  const failureEvidence = { reason: "ego runner unavailable", exitCode: execution.code, detail };
+  const failureEvidence = { reason: execution.timedOut ? "ego_phase_timeout" : "ego runner unavailable", exitCode: execution.code, signal: execution.signal || null, phaseTimeoutMs: execution.timeoutMs || phaseTimeoutMs, detail };
   const gates = Object.fromEntries(requiredGates(platform).map(name => [name, { ok: false, evidence: failureEvidence }]));
   gates.safety = { ok: false, evidence: { finalPublishClicked: false, guardArmed: false, blockedAttempts: 0 } };
   result = {
@@ -133,7 +164,7 @@ try {
     gates,
     blocker: {
       code: userControl ? "USER_CONTROL" : "INPUT_CHANNEL_BROKEN",
-      message: userControl ? "Ego Lite 任务空间已由用户接管" : "Ego Lite 已退出或无法返回页面证据",
+      message: userControl ? "Ego Lite 任务空间已由用户接管" : (execution.timedOut ? "Ego Lite 页面阶段超时，已停止无响应子进程" : "Ego Lite 已退出或无法返回页面证据"),
       retryable: !userControl,
       requiresUser: userControl,
       evidence: failureEvidence,

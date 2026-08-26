@@ -30,6 +30,27 @@ test("platform runner turns an Ego process failure into structured page evidence
   assert.equal(observation.finalPublishClicked,false);
 });
 
+test("platform runner terminates a stalled short interactive phase with structured evidence",async()=>{
+  const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-ego-timeout-test-"));
+  const videoPath=path.join(root,"sample.mp4");
+  const packagePath=path.join(root,"package.json");
+  const configPath=path.join(root,"config.json");
+  const fakeEgoPath=path.join(root,"stalled-ego");
+  await fs.promises.writeFile(videoPath,"test video fixture");
+  await fs.promises.writeFile(packagePath,JSON.stringify({videoPath,title:"Ego timeout",xhsTopics:["Test"],cover:{uploadCustomCover:false}}));
+  await fs.promises.writeFile(configPath,JSON.stringify({schemaVersion:1,onboarding:{completed:true},sourceDirectory:root,defaultPlatforms:["xiaohongshu"],declarations:{originalityPolicy:"all_videos_original"}}));
+  await fs.promises.writeFile(fakeEgoPath,"#!/bin/sh\ncat >/dev/null\nsleep 2\n");
+  await fs.promises.chmod(fakeEgoPath,0o755);
+  const result=await run(process.execPath,[path.join(V2_DIR,"run-platform.mjs"),"xiaohongshu",packagePath,"prefill","ego-timeout","789"],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_EGO_COMMAND:fakeEgoPath,VIDEO_PUBLISHER_V2_PHASE_TIMEOUT_MS:"20"}});
+  assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
+  const observation=parseV2Result(result.stdout);
+  assert.equal(observation.taskSpaceId,789);
+  assert.equal(observation.blocker.code,"INPUT_CHANNEL_BROKEN");
+  assert.equal(observation.blocker.evidence.reason,"ego_phase_timeout");
+  assert.equal(observation.blocker.evidence.phaseTimeoutMs,20);
+  assert.match(observation.blocker.message,/阶段超时/);
+});
+
 test("platform runner recognizes Ego's real user-takeover wording",async()=>{
   const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-user-control-test-"));
   const videoPath=path.join(root,"sample.mp4");

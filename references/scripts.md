@@ -45,6 +45,8 @@ This is the normal publishing command. Use `--stop-at-ready` only when the user 
 
 Before upload input, the runner performs two serial read-only browser-health inspections for every selected platform, so only one Ego runtime probe is active at a time. A page-status RPC gets up to three short retries before becoming `INPUT_CHANNEL_BROKEN`. This entry detects that typed blocker from the current attempt's state history and retries the same stateful job after 5 seconds and 10 seconds. It never reinjects an active upload; after the second unsuccessful recovery it exits with the saved state and no unverified final publish.
 
+Short interactive phases (`inspect`, `inject`, `prefill`, `mutate`, `verify`, and `publish`) also terminate their own unresponsive Ego process group after a bounded phase timeout and record the same typed blocker. Long upload/prepare phases retain a 20-minute bound.
+
 When onboarding has `declarations.originalityPolicy: all_videos_original`, the runner applies truthful original/self-made declarations without another flag. With the generic `ask_each_run` policy, add `--confirm-original-rights` only after the user confirms the current video; this one-run override is not persisted. Read-only `--inspect-only` never needs either signal.
 
 The platform list is optional; omit it to select every configured default platform. If the second positional argument is a platform key, the task suffix defaults to `manual`.
