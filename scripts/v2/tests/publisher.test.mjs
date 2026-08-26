@@ -226,6 +226,24 @@ test("single-platform WeChat auto-publishes only after independent READY verific
   assert.equal(summary.platforms.wechat_channels.published,true);
 });
 
+test("Xiaohongshu auto-publishes only after mutation and independent READY verification", async () => {
+  const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-xhs-auto-publish-test-"));
+  const videoPath=path.join(root,"sample-video.mp4");
+  const packagePath=path.join(root,"package.json");
+  const configPath=path.join(root,"config.json");
+  const log=path.join(root,"events.ndjson");
+  await fs.promises.writeFile(videoPath,"test video fixture");
+  await fs.promises.writeFile(configPath,JSON.stringify({schemaVersion:2,onboarding:{completed:true},sourceDirectory:root,availablePlatforms:["xiaohongshu"],defaultPlatforms:["xiaohongshu"],execution:{checkConcurrency:1,uploadConcurrency:1,autoPublishOnReady:true}}));
+  await fs.promises.writeFile(packagePath,JSON.stringify({videoPath,title:"XHS auto publish",xhsDescription:"XHS description",xhsTopics:["One","Two","Three"],cover:{uploadCustomCover:false}}));
+  const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"xhs-auto-publish","xiaohongshu","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
+  assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
+  const phases=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line)).filter(item=>item.event==="start").map(item=>item.phase);
+  assert.deepEqual(phases,["inspect","upload","mutate","verify","publish"]);
+  const summary=JSON.parse(result.stdout);
+  assert.equal(summary.status,"published");
+  assert.equal(summary.platforms.xiaohongshu.published,true);
+});
+
 test("WeChat opt-in originality requires current-run confirmation", async () => {
   const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-wechat-rights-test-"));
   const videoPath=path.join(root,"sample-video.mp4");

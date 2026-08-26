@@ -16,7 +16,8 @@ export const BLOCKER = Object.freeze({
 
 const REQUIRED_GATES = Object.freeze({
   xiaohongshu: [
-    "authenticated", "draftIdentity", "video", "title", "tags", "original",
+    "authenticated", "draftIdentity", "video", "title", "description", "tags",
+    "original", "pkCover", "contentType", "defaults", "visibility", "schedule",
     "cover", "noBlockingDialog", "finalButton", "safety",
   ],
   douyin: [

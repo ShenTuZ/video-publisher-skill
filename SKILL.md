@@ -97,7 +97,7 @@ Use onboarded configuration as defaults, then confirm the exact source, selected
 Platform-native defaults:
 
 ```text
-Xiaohongshu: short title, real topic entities, no prose body by default, originality off unless explicitly requested
+Xiaohongshu: title up to 20 characters, concise description, 3-5 real topic entities, originality off unless explicitly requested
 Douyin: title/body plus 1-5 package-supplied topic entities
 WeChat Channels: description and sanitized short title are prefilled before upload; location is preserved, collection is untouched, and activity remains “不参与活动”
 ```
@@ -124,7 +124,19 @@ WeChat Channels uses a fixed default template. When the user does not mention a 
 }
 ```
 
-Xiaohongshu similarly resolves `xhsOriginal: false` unless the current request explicitly asks to declare originality.
+Xiaohongshu uses this fixed template unless the current request explicitly overrides a field:
+
+```json
+{
+  "xhsDescription": "concise per-video description",
+  "xhsTopics": ["3-5 real topic entities"],
+  "xhsOriginal": false,
+  "xhsAiGenerated": false,
+  "xhsPublish": { "mode": "immediate" }
+}
+```
+
+Keep the platform-default cover, PK cover off, no chapters/collection/location/components/activities, and public visibility. When the user explicitly says the video contains AI-generated content, set `xhsAiGenerated: true` and select `笔记含AI合成内容`. For scheduled publishing use `xhsPublish: { "mode": "scheduled", "publishAt": "YYYY-MM-DD HH:mm" }`.
 
 Only explicit current-run instructions override this template. For scheduled videos, use `wechatPublish: { "mode": "scheduled", "publishAt": "YYYY-MM-DD HH:mm" }`. For product-linked videos, use either `wechatLink: { "type": "product", "selection": "search", "query": "product name or id", "expectedName": "exact visible product name" }` or `wechatLink: { "type": "product", "selection": "first" }` when the user explicitly requests the first available product. Set `wechatAiGenerated: true` only when the user says the video contains AI-generated content. Set `wechatOriginal: true` only when the user explicitly says to add/declare originality; otherwise leave the control unchecked. If the product entry or first selectable row is unavailable, return a blocker instead of selecting another link type.
 

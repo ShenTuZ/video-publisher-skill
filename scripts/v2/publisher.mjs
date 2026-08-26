@@ -22,7 +22,7 @@ import { runPool, SerialQueue } from "./lib/scheduler.mjs";
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.join(os.homedir(), ".video-publisher", "v2-jobs");
 const FAST_OVERLAP_PLATFORMS = new Set(["wechat_channels"]);
-const AUTO_PUBLISH_PLATFORMS = new Set(["wechat_channels"]);
+const AUTO_PUBLISH_PLATFORMS = new Set(["xiaohongshu", "wechat_channels"]);
 const validators = { xiaohongshu: validateXiaohongshuPackage, douyin: validateDouyinPackage, wechat_channels: validateWechatChannelsPackage };
 
 class UsageError extends Error {}

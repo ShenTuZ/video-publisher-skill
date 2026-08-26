@@ -17,6 +17,8 @@ Before any browser upload, verify the local file exists with `ls -lh` or `test -
 
 Default both `xhsOriginal` and `wechatOriginal` to false. Set the matching field true only when the user explicitly requests originality for the current video; true requires the applicable standing policy or current-video rights confirmation. Never infer eligibility from the filename or content. Treat originality separately from final-publish authorization.
 
+For Xiaohongshu, generate an exact concise description and 3-5 readable topics, default `xhsAiGenerated` to false, and default `xhsPublish` to immediate. Set AI true or scheduled time only from an explicit current-video instruction.
+
 If the exact path does not exist:
 
 ```text

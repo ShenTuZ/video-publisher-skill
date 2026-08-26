@@ -111,6 +111,40 @@ test("Xiaohongshu originality is opt-in and defaults to false", async () => {
   });
 });
 
+test("Xiaohongshu applies description, AI, and immediate publish defaults", async () => {
+  await withTempDir(async root => {
+    const packagePath = path.join(root, "package.json");
+    await fs.promises.writeFile(packagePath, JSON.stringify({
+      title: "XHS defaults",
+      xhsDescription: "A concise Xiaohongshu description",
+      xhsTopics: ["One", "Two", "Three"],
+    }));
+    const pkg = readPackage(packagePath, { config: defaultConfig() });
+    assert.equal(pkg.xhsDescription, "A concise Xiaohongshu description");
+    assert.equal(pkg.xhsAiGenerated, false);
+    assert.equal(pkg.xhsOriginal, false);
+    assert.deepEqual(pkg.xhsPublish, { mode: "immediate", publishAt: "" });
+    assert.deepEqual(validateXiaohongshuPackage(pkg), []);
+  });
+});
+
+test("Xiaohongshu validates scheduled publish timestamps and topic count", async () => {
+  await withTempDir(async root => {
+    const packagePath = path.join(root, "package.json");
+    await fs.promises.writeFile(packagePath, JSON.stringify({
+      title: "XHS scheduled",
+      xhsDescription: "Scheduled description",
+      xhsTopics: ["One", "Two", "Three", "Four", "Five", "Six"],
+      xhsAiGenerated: true,
+      xhsPublish: { mode: "scheduled", publishAt: "2026/08/27 13:00" },
+    }));
+    const pkg = readPackage(packagePath, { config: defaultConfig() });
+    const errors = validateXiaohongshuPackage(pkg);
+    assert.match(errors.join("; "), /at most 5 topics/);
+    assert.match(errors.join("; "), /YYYY-MM-DD HH:mm/);
+  });
+});
+
 test("account defaults fill only fields omitted from the package", async () => {
   await withTempDir(async root => {
     const packagePath = path.join(root, "package.json");

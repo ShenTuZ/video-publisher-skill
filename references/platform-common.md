@@ -162,7 +162,7 @@ Do not hide a typed blocker behind a generic “not ready” message. Authentica
 ## Platform Text And Tags
 
 ```text
-Xiaohongshu: selected topic entities; no prose body by default.
+Xiaohongshu: exact concise description plus selected topic entities; fixed optional-component defaults.
 Douyin: exact package-supplied topics as real entities, with no residue or duplicates.
 WeChat Channels: plain hashtags inside the per-video description; exact per-video short title, publish mode, product-link intent, and AI status come from the package.
 ```

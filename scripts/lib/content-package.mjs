@@ -117,9 +117,17 @@ export function readPackage(packagePath, { config: suppliedConfig } = {}) {
     wechat_channels: String(parsed.wechatTitle || parsed.wechatChannelsTitle || title).trim(),
   };
   const description = normalizeDescription(parsed.description || "");
+  const xhsDescription = normalizeDescription(parsed.xhsDescription || parsed.description || "");
   const douyinDescription = normalizeDescription(parsed.douyinDescription || parsed.description || "");
   const wechatDescription = normalizeDescription(parsed.wechatDescription || parsed.description || "");
   const wechatShortTitle = sanitizeShortTitle(parsed.wechatShortTitle || platformTitle.wechat_channels || title);
+  const rawXhsPublish = parsed.xhsPublish && typeof parsed.xhsPublish === "object"
+    ? parsed.xhsPublish
+    : {};
+  const xhsPublish = {
+    mode: String(rawXhsPublish.mode || "immediate").trim(),
+    publishAt: String(rawXhsPublish.publishAt || "").trim(),
+  };
   const rawWechatPublish = parsed.wechatPublish && typeof parsed.wechatPublish === "object"
     ? parsed.wechatPublish
     : {};
@@ -139,6 +147,7 @@ export function readPackage(packagePath, { config: suppliedConfig } = {}) {
   const wechatAiGenerated = typeof parsed.wechatAiGenerated === "boolean"
     ? parsed.wechatAiGenerated
     : false;
+  const xhsAiGenerated = parsed.xhsAiGenerated === true;
   const xhsOriginal = parsed.xhsOriginal === true;
   const wechatOriginal = parsed.wechatOriginal === true;
   const wechatPolicies = {
@@ -166,12 +175,15 @@ export function readPackage(packagePath, { config: suppliedConfig } = {}) {
     title,
     platformTitle,
     description,
+    xhsDescription,
     douyinDescription,
     wechatDescription,
     wechatShortTitle,
+    xhsPublish,
     wechatPublish,
     wechatLink,
     wechatAiGenerated,
+    xhsAiGenerated,
     xhsOriginal,
     wechatOriginal,
     wechatPolicies,
@@ -186,7 +198,7 @@ export function validateCommonPackage(pkg) {
   const errors = [];
   if (!pkg.title) errors.push("title is required");
   if (hasLiteralEscapedNewline(pkg.title)) errors.push("title contains literal escaped newline");
-  for (const key of ["description", "douyinDescription", "wechatDescription"]) {
+  for (const key of ["description", "xhsDescription", "douyinDescription", "wechatDescription"]) {
     if (hasLiteralEscapedNewline(pkg[key])) errors.push(`${key} contains literal escaped newline; use real newlines`);
   }
   return errors;
@@ -239,6 +251,12 @@ export function validateXiaohongshuPackage(pkg) {
   const xhsTitle = String(pkg.platformTitle?.xiaohongshu || pkg.xhsTitle || pkg.xiaohongshuTitle || pkg.title || "").trim();
   if (xhsTitle.length > 20) errors.push(`xiaohongshu title is ${xhsTitle.length}/20`);
   if (!pkg.xhsTopics.length) errors.push("xhsTopics are required");
+  if (pkg.xhsTopics.length > 5) errors.push("xiaohongshu supports at most 5 topics");
+  if ((pkg.xhsDescription.match(/#[^\s#]+/g) || []).length) errors.push("xhsDescription must not contain inline hashtags; use xhsTopics");
+  if (!["immediate", "scheduled"].includes(pkg.xhsPublish?.mode)) errors.push("xhsPublish.mode must be immediate or scheduled");
+  if (pkg.xhsPublish?.mode === "scheduled" && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(pkg.xhsPublish.publishAt || "")) {
+    errors.push("xhsPublish.publishAt must use YYYY-MM-DD HH:mm when scheduled");
+  }
   return errors;
 }
 

@@ -29,6 +29,13 @@ test("Xiaohongshu topics start through the native editor command", () => {
   assert.match(source, /async function ensureXhsOriginalPolicy\(/);
   assert.match(source, /xhsOriginal\s*\?\s*\(state\.originalEnabled/);
   assert.match(source, /label:xhsOriginal\?'enable xhs original declaration':'disable xhs original declaration'/);
+  for (const name of ["ensureXhsPkCoverOff", "ensureXhsContentType", "ensureXhsDefaultExtras", "ensureXhsVisibility", "ensureXhsSchedule", "publishXiaohongshu"]) {
+    assert.match(source, new RegExp(`async function ${name}\\(`));
+  }
+  assert.match(source, /笔记含AI合成内容/);
+  assert.match(source, /permission-card-select/);
+  assert.match(source, /semanticFinalMatch/);
+  assert.match(source, /phase === 'publish'/);
 });
 
 test("Douyin preserves committed topic entities while retrying a failed tail query", () => {
