@@ -22,7 +22,7 @@ import { runPool, SerialQueue } from "./lib/scheduler.mjs";
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.join(os.homedir(), ".video-publisher", "v2-jobs");
 const FAST_OVERLAP_PLATFORMS = new Set(["xiaohongshu", "douyin", "wechat_channels"]);
-const AUTO_PUBLISH_PLATFORMS = new Set(["xiaohongshu", "wechat_channels"]);
+const AUTO_PUBLISH_PLATFORMS = new Set(["xiaohongshu", "douyin", "wechat_channels"]);
 const validators = { xiaohongshu: validateXiaohongshuPackage, douyin: validateDouyinPackage, wechat_channels: validateWechatChannelsPackage };
 
 class UsageError extends Error {}
@@ -284,6 +284,34 @@ async function main() {
     && activePlatforms().length === 1
     && new Set(["xiaohongshu", "wechat_channels"]).has(activePlatforms()[0]);
 
+  // Two fresh read-only passes prove that the shared Ego channel can select every
+  // platform page before any upload input is touched. The second pass deliberately
+  // uses the same persisted task spaces, so an unstable browser is caught before
+  // it can create a partial upload job.
+  console.error(`[video-publisher-v2] browser health inspect 1/2 parallel=${args.checkConcurrency}`);
+  await runPool(activePlatforms(), args.checkConcurrency, platform => invoke(platform, "inspect"));
+  if (!inputChannelBroken) {
+    console.error(`[video-publisher-v2] browser health inspect 2/2 parallel=${args.checkConcurrency}`);
+    await runPool(activePlatforms(), args.checkConcurrency, platform => invoke(platform, "inspect"));
+  }
+  if (!inputChannelBroken && !persistentSingleFastPlatform) await publishReadyPlatforms();
+  if (args.inspectOnly) {
+    state.status = runnablePlatforms.length === args.platforms.length ? "inspected" : "blocked";
+    await store.save();
+    await store.close();
+    console.log(JSON.stringify(summary(state, args.platforms, store.statePath), null, 2));
+    if (state.status === "blocked") process.exitCode = 10;
+    return;
+  }
+
+  const userBlocked = activePlatforms().find(platform => state.platforms[platform].status === "blocked_user");
+  if (userBlocked) {
+    state.status = "paused_user";
+    await store.save(); await store.close();
+    console.log(JSON.stringify(summary(state, args.platforms, store.statePath), null, 2));
+    process.exitCode = 10; return;
+  }
+
   if (persistentSingleFastPlatform) {
     const platform=activePlatforms()[0];
     console.error(`[video-publisher-v2] persistent ${platform} prepare: inspect -> inject -> overlap prefill -> upload wait -> repair`);
@@ -303,26 +331,6 @@ async function main() {
     console.log(JSON.stringify(summary(state, args.platforms, store.statePath), null, 2));
     if (!complete) process.exitCode = 10;
     return;
-  }
-
-  console.error(`[video-publisher-v2] inspect parallel=${args.checkConcurrency}`);
-  await runPool(activePlatforms(), args.checkConcurrency, platform => invoke(platform, "inspect"));
-  await publishReadyPlatforms();
-  if (args.inspectOnly) {
-    state.status = runnablePlatforms.length === args.platforms.length ? "inspected" : "blocked";
-    await store.save();
-    await store.close();
-    console.log(JSON.stringify(summary(state, args.platforms, store.statePath), null, 2));
-    if (state.status === "blocked") process.exitCode = 10;
-    return;
-  }
-
-  const userBlocked = activePlatforms().find(platform => state.platforms[platform].status === "blocked_user");
-  if (userBlocked) {
-    state.status = "paused_user";
-    await store.save(); await store.close();
-    console.log(JSON.stringify(summary(state, args.platforms, store.statePath), null, 2));
-    process.exitCode = 10; return;
   }
 
   const injectTargets = inputChannelBroken ? [] : activePlatforms().filter(platform => FAST_OVERLAP_PLATFORMS.has(platform) && state.platforms[platform].status === "needs_upload");

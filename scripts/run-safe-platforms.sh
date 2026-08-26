@@ -9,4 +9,4 @@ if [[ $# -lt 1 ]]; then
   exit 2
 fi
 
-exec node "${script_dir}/v2/publisher.mjs" "$@"
+exec "${script_dir}/run-fast-platforms.sh" "$@"

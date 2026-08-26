@@ -76,6 +76,45 @@ test("publisher waits for every upload process before serial UI mutation", async
   assert.equal(summary.scheduler.uiConcurrency,1);
 });
 
+test("publisher performs two healthy inspections before the first upload injection", async () => {
+  const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-health-check-test-"));
+  const log=path.join(root,"events.ndjson");
+  const videoPath=path.join(root,"sample-video.mp4");
+  const packagePath=path.join(root,"package.json");
+  const configPath=path.join(root,"config.json");
+  await fs.promises.writeFile(videoPath,"test video fixture");
+  await fs.promises.writeFile(configPath,JSON.stringify({schemaVersion:2,onboarding:{completed:true},sourceDirectory:root,availablePlatforms:["xiaohongshu","douyin"],defaultPlatforms:["xiaohongshu","douyin"],execution:{checkConcurrency:2,uploadConcurrency:2}}));
+  await fs.promises.writeFile(packagePath,JSON.stringify({videoPath,title:"Health check",xhsTopics:["Test"],douyinTopics:["Test"],cover:{uploadCustomCover:false}}));
+  const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"health-check","xiaohongshu","douyin","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
+  assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
+  const events=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line));
+  const inspections=events.filter(item=>item.phase==="inspect"&&item.event==="start");
+  assert.equal(inspections.length,4,"every selected platform must pass two read-only health inspections");
+  const lastInspectEnd=Math.max(...events.filter(item=>item.phase==="inspect"&&item.event==="end").map(item=>item.at));
+  const firstInjectStart=Math.min(...events.filter(item=>item.phase==="inject"&&item.event==="start").map(item=>item.at));
+  assert.ok(lastInspectEnd<=firstInjectStart,{lastInspectEnd,firstInjectStart});
+});
+
+test("fast wrapper retries the same job once after a shared Ego channel failure", async () => {
+  const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-wrapper-recovery-test-"));
+  const videoPath=path.join(root,"sample-video.mp4");
+  const packagePath=path.join(root,"package.json");
+  const configPath=path.join(root,"config.json");
+  const markerPath=path.join(root,"first-publisher.json");
+  await fs.promises.writeFile(videoPath,"test video fixture");
+  await fs.promises.writeFile(configPath,JSON.stringify({schemaVersion:2,onboarding:{completed:true},sourceDirectory:root,availablePlatforms:["xiaohongshu"],defaultPlatforms:["xiaohongshu"],execution:{checkConcurrency:1,uploadConcurrency:1}}));
+  await fs.promises.writeFile(packagePath,JSON.stringify({videoPath,title:"Wrapper recovery",xhsTopics:["Test"],cover:{uploadCustomCover:false}}));
+  const wrapper=path.join(V2_DIR,"..","run-fast-platforms.sh");
+  const result=await run("bash",[wrapper,packagePath,"wrapper-recovery","xiaohongshu","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_BROKEN_ONCE:"xiaohongshu:*",VIDEO_PUBLISHER_V2_MOCK_BROKEN_ONCE_MARKER:markerPath,VIDEO_PUBLISHER_INPUT_RECOVERY_DELAYS:"0,0"}});
+  assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
+  assert.match(result.stderr,/retrying the same job in 0s \(1\/2\)/);
+  assert.equal(fs.existsSync(markerPath),true);
+  const stateDirs=(await fs.promises.readdir(root,{withFileTypes:true})).filter(item=>item.isDirectory()&&item.name!=='.publisher');
+  assert.equal(stateDirs.length,1,"recovery must reuse the original job directory");
+  const state=JSON.parse(await fs.promises.readFile(path.join(root,stateDirs[0].name,"state.json"),"utf8"));
+  assert.equal(state.status,"ready");
+});
+
 test("publisher circuit-breaks all UI mutation after an upload loses Ego", async () => {
   const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-channel-break-test-"));
   const log=path.join(root,"events.ndjson");
@@ -204,7 +243,7 @@ test("single-platform WeChat uses one persistent prepare runner plus independent
   const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"wechat-persistent","wechat_channels","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
   assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
   const events=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line));
-  assert.deepEqual(events.filter(item=>item.event==="start").map(item=>item.phase),["prepare","verify"]);
+  assert.deepEqual(events.filter(item=>item.event==="start").map(item=>item.phase),["inspect","inspect","prepare","verify"]);
   assert.equal(JSON.parse(result.stdout).ready,true);
 });
 
@@ -220,7 +259,7 @@ test("single-platform WeChat auto-publishes only after independent READY verific
   const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"wechat-auto-publish","wechat_channels","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
   assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
   const events=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line));
-  assert.deepEqual(events.filter(item=>item.event==="start").map(item=>item.phase),["prepare","verify","publish"]);
+  assert.deepEqual(events.filter(item=>item.event==="start").map(item=>item.phase),["inspect","inspect","prepare","verify","publish"]);
   const summary=JSON.parse(result.stdout);
   assert.equal(summary.status,"published");
   assert.equal(summary.platforms.wechat_channels.published,true);
@@ -238,13 +277,13 @@ test("Xiaohongshu auto-publishes only after persistent prepare and independent R
   const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"xhs-auto-publish","xiaohongshu","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
   assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
   const phases=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line)).filter(item=>item.event==="start").map(item=>item.phase);
-  assert.deepEqual(phases,["prepare","verify","publish"]);
+  assert.deepEqual(phases,["inspect","inspect","prepare","verify","publish"]);
   const summary=JSON.parse(result.stdout);
   assert.equal(summary.status,"published");
   assert.equal(summary.platforms.xiaohongshu.published,true);
 });
 
-test("an explicit current-run publish flag permits the first Douyin publish acceptance", async () => {
+test("configured automatic publishing includes the live-accepted Douyin flow", async () => {
   const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-douyin-explicit-publish-test-"));
   const log=path.join(root,"events.ndjson");
   const videoPath=path.join(root,"sample-video.mp4");
@@ -253,10 +292,10 @@ test("an explicit current-run publish flag permits the first Douyin publish acce
   await fs.promises.writeFile(videoPath,"test video fixture");
   await fs.promises.writeFile(configPath,JSON.stringify({schemaVersion:2,onboarding:{completed:true},sourceDirectory:root,availablePlatforms:["douyin"],defaultPlatforms:["douyin"],declarations:{originalityPolicy:"ask_each_run"},execution:{checkConcurrency:1,uploadConcurrency:1,autoPublishOnReady:true}}));
   await fs.promises.writeFile(packagePath,JSON.stringify({videoPath,title:"Douyin explicit publish",douyinTopics:["Test"],cover:{uploadCustomCover:false}}));
-  const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"douyin-explicit","douyin","--publish-on-ready","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
+  const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"douyin-auto","douyin","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
   assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
   const events=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line));
-  assert.deepEqual(events.filter(item=>item.event==="start").map(item=>item.phase),["inspect","inject","prefill","wait_upload","mutate","publish"]);
+  assert.deepEqual(events.filter(item=>item.event==="start").map(item=>item.phase),["inspect","inspect","inject","prefill","wait_upload","mutate","publish"]);
   assert.equal(JSON.parse(result.stdout).platforms.douyin.published,true);
 });
 

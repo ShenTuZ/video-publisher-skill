@@ -58,6 +58,9 @@ test("Douyin preserves committed topic entities while retrying a failed tail que
   assert.match(source, /controlPresent:state\.syncFound/);
   assert.match(source, /内容由AI生成/);
   assert.match(source, /declaration dialog did not close/);
+  assert.match(source, /closeDouyinDeclarationDialog/);
+  assert.match(source, /vp2-douyin-declaration-option/);
+  assert.match(source, /confirmEnabled/);
   assert.doesNotMatch(source, /douyinOriginal/);
   assert.match(source, /authorizeFinalPublishGuard\(\)/);
   assert.match(source, /phase==='publish'/);

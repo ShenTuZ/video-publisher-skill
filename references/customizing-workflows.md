@@ -144,7 +144,7 @@ Call the ensure step from `mutate`, after its prerequisites and before cover/fin
 
 Custom flows may not:
 
-- click or authorize final publishing before every selected platform reaches independent READY;
+- click or authorize a platform's final publishing control before that platform independently reaches READY;
 - bypass the maintained `publish` phase, its explicit current-run/private authorization, or its platform success evidence;
 - weaken pre-READY `finalPublishClicked: false`, `guardArmed: true`, or `blockedAttempts: 0`;
 - declare content original without the configured truthful policy or current-run confirmation;
