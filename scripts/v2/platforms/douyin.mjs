@@ -258,10 +258,10 @@ async function ensureDouyinDeclaration() {
   const option=await js(String.raw`((desired) => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden'};const item=[...document.querySelectorAll('label,[role="radio"],div')].filter(visible).find(el=>compact(el.innerText||el.textContent||'')===desired);if(!item)return {ok:false,reason:'douyin declaration option missing: '+desired};item.click();return {ok:true}})(${JSON.stringify(desired)})`);
   if(!option.ok)return option;
   await wait(.2);
-  const confirm=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const button=[...document.querySelectorAll('button')].find(el=>compact(el.innerText||el.textContent||'')==='确定'&&!el.disabled);if(!button)return {ok:false,reason:'douyin declaration confirm missing'};button.click();return {ok:true}})()`);
+  const confirm=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const button=[...document.querySelectorAll('button')].find(el=>compact(el.innerText||el.textContent||'')==='确定'&&!el.disabled);if(!button)return {ok:true,alreadyClosed:true};button.click();return {ok:true}})()`);
   if(!confirm.ok)return confirm;
   let closed=false;for(let attempt=0;attempt<12;attempt+=1){closed=await js(String.raw`(() => ![...document.querySelectorAll('.semi-modal,[role="dialog"]')].some(el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>10&&r.height>10&&s.display!=='none'&&s.visibility!=='hidden'&&/请选择声明类型/.test(el.innerText||el.textContent||'')}))()`);if(closed)break;await wait(.2)}
-  if(!closed)return {ok:false,reason:'douyin declaration dialog did not close'};
+  if(!closed&&!confirm.alreadyClosed)return {ok:false,reason:'douyin declaration dialog did not close'};
   const after=await inspectDouyin();
   return after.gates.aiLabel.ok?{ok:true,changed:true}:{ok:false,reason:'douyin declaration did not persist',evidence:after.gates.aiLabel.evidence};
 }

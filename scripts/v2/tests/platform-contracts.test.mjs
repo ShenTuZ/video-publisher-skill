@@ -35,7 +35,7 @@ test("Xiaohongshu topics start through the native editor command", () => {
     assert.match(source, new RegExp(`async function ${name}\\(`));
   }
   assert.match(source, /笔记含AI合成内容/);
-  assert.match(source, /accept xhs original terms/);
+  assert.match(source, /accept_terms/);
   assert.match(source, /original confirmation dialog did not close/);
   assert.match(source, /permission-card-select/);
   assert.match(source, /semanticFinalMatch/);
