@@ -35,6 +35,8 @@ test("Xiaohongshu topics start through the native editor command", () => {
     assert.match(source, new RegExp(`async function ${name}\\(`));
   }
   assert.match(source, /笔记含AI合成内容/);
+  assert.match(source, /accept xhs original terms/);
+  assert.match(source, /original confirmation dialog did not close/);
   assert.match(source, /permission-card-select/);
   assert.match(source, /semanticFinalMatch/);
   assert.match(source, /phase === 'publish'/);
@@ -55,6 +57,7 @@ test("Douyin preserves committed topic entities while retrying a failed tail que
   assert.match(source, /officialActivity:activityEntities\.length===0/);
   assert.match(source, /controlPresent:state\.syncFound/);
   assert.match(source, /内容由AI生成/);
+  assert.match(source, /declaration dialog did not close/);
   assert.doesNotMatch(source, /douyinOriginal/);
   assert.match(source, /authorizeFinalPublishGuard\(\)/);
   assert.match(source, /phase==='publish'/);

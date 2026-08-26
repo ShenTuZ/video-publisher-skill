@@ -300,16 +300,16 @@ async function ensureXhsOriginalPolicy(currentGate=null) {
   await click(control.selector,{label:xhsOriginal?'enable xhs original declaration':'disable xhs original declaration'}).catch(()=>{});
   await wait(1.5);
   const modalResult = xhsOriginal ? await js(String.raw`(() => {
-    const modal = [...document.querySelectorAll('.d-modal')].find(el => /笔记完成原创声明后|原创声明须知/.test(el.innerText || el.textContent || ''))
-    if (!modal) return { ok: true, modal: false }
-    const checkbox = modal.querySelector('.d-checkbox, input[type="checkbox"]')
-    const input = modal.querySelector('input[type="checkbox"]')
-    if (input && !input.checked) (checkbox || input).click()
-    const button = [...modal.querySelectorAll('button')].find(el => String(el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() === '声明原创')
-    if (!button || button.disabled) return { ok: false, reason: 'xiaohongshu original confirm disabled' }
-    button.click(); return { ok: true, modal: true }
+    const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>10&&r.height>10&&s.display!=='none'&&s.visibility!=='hidden'};
+    const modal=[...document.querySelectorAll('.d-modal,.d-modal-mask')].filter(visible).find(el=>/笔记完成原创声明后|原创声明须知/.test(el.innerText||el.textContent||''));
+    if(!modal)return {ok:true,modal:false};const input=modal.querySelector('input[type="checkbox"]');const checkbox=input?.closest('label')||modal.querySelector('.d-checkbox')||input;const button=[...modal.querySelectorAll('button')].find(el=>compact(el.innerText||el.textContent||'')==='声明原创'&&!el.disabled);if(!button)return {ok:false,reason:'xiaohongshu original confirm disabled'};const cr=checkbox?.getBoundingClientRect(),br=button.getBoundingClientRect();return {ok:true,modal:true,checked:Boolean(input?.checked),checkbox:cr?{x:cr.left+cr.width/2,y:cr.top+cr.height/2}:null,confirm:{x:br.left+br.width/2,y:br.top+br.height/2}}
   })()`) : { ok: true, modal: false };
-  await wait(2);
+  if(!modalResult.ok)return modalResult;
+  if(modalResult.modal&&!modalResult.checked&&modalResult.checkbox)await click([modalResult.checkbox.x,modalResult.checkbox.y],{label:'accept xhs original terms'});
+  if(modalResult.modal)await click([modalResult.confirm.x,modalResult.confirm.y],{label:'confirm xhs original declaration'});
+  let modalClosed=true;
+  for(let attempt=0;attempt<15&&modalResult.modal;attempt+=1){modalClosed=await js(String.raw`(() => ![...document.querySelectorAll('.d-modal,.d-modal-mask')].some(el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>10&&r.height>10&&s.display!=='none'&&s.visibility!=='hidden'&&/笔记完成原创声明后|原创声明须知/.test(el.innerText||el.textContent||'')}))()`);if(!modalClosed)await wait(.2)}
+  if(!modalClosed)return {ok:false,reason:'xiaohongshu original confirmation dialog did not close'};
   await removeExactStaleMask(/笔记完成原创声明后|原创声明须知|声明原创/);
   const inspected = await inspectXiaohongshu();
   return inspected.gates.original.ok ? { ok: true, control, modalResult } : { ok: false, reason: 'xiaohongshu original declaration state did not persist', control, modalResult };

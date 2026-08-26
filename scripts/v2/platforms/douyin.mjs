@@ -254,13 +254,14 @@ async function ensureDouyinDeclaration() {
   const desired=douyinAiGenerated?'内容由AI生成':'无需添加自主声明';
   const control=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const section=[...document.querySelectorAll('section')].find(el=>compact(el.querySelector('.title-cnbkZe')?.innerText||'')==='自主声明');const control=section?.querySelector('.selectBox-buZRzi');if(!control)return {ok:false,reason:'douyin declaration control missing'};control.id='vp2-douyin-declaration';control.scrollIntoView({block:'center'});return {ok:true}})()`);
   if(!control.ok)return control;
-  await click('#vp2-douyin-declaration',{label:'open douyin declaration'}).catch(()=>{});await wait(.2);
-  const option=await js(String.raw`((desired) => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden'};const item=[...document.querySelectorAll('label,[role="radio"],div')].filter(visible).find(el=>compact(el.innerText||el.textContent||'')===desired);if(!item)return {ok:false,reason:'douyin declaration option missing: '+desired};item.id='vp2-douyin-declaration-option';return {ok:true}})(${JSON.stringify(desired)})`);
+  const opened=await js(String.raw`(() => {const el=document.querySelector('#vp2-douyin-declaration');if(!el)return {ok:false};el.click();return {ok:true}})()`);if(!opened.ok)return opened;await wait(.2);
+  const option=await js(String.raw`((desired) => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden'};const item=[...document.querySelectorAll('label,[role="radio"],div')].filter(visible).find(el=>compact(el.innerText||el.textContent||'')===desired);if(!item)return {ok:false,reason:'douyin declaration option missing: '+desired};item.click();return {ok:true}})(${JSON.stringify(desired)})`);
   if(!option.ok)return option;
-  await click('#vp2-douyin-declaration-option',{label:`select ${desired}`}).catch(()=>{});await wait(.2);
-  const confirm=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const button=[...document.querySelectorAll('button')].find(el=>compact(el.innerText||el.textContent||'')==='确定'&&!el.disabled);if(!button)return {ok:false,reason:'douyin declaration confirm missing'};button.id='vp2-douyin-declaration-confirm';return {ok:true}})()`);
+  await wait(.2);
+  const confirm=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const button=[...document.querySelectorAll('button')].find(el=>compact(el.innerText||el.textContent||'')==='确定'&&!el.disabled);if(!button)return {ok:false,reason:'douyin declaration confirm missing'};button.click();return {ok:true}})()`);
   if(!confirm.ok)return confirm;
-  await click('#vp2-douyin-declaration-confirm',{label:'confirm douyin declaration'}).catch(()=>{});await wait(.4);
+  let closed=false;for(let attempt=0;attempt<12;attempt+=1){closed=await js(String.raw`(() => ![...document.querySelectorAll('.semi-modal,[role="dialog"]')].some(el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>10&&r.height>10&&s.display!=='none'&&s.visibility!=='hidden'&&/请选择声明类型/.test(el.innerText||el.textContent||'')}))()`);if(closed)break;await wait(.2)}
+  if(!closed)return {ok:false,reason:'douyin declaration dialog did not close'};
   const after=await inspectDouyin();
   return after.gates.aiLabel.ok?{ok:true,changed:true}:{ok:false,reason:'douyin declaration did not persist',evidence:after.gates.aiLabel.evidence};
 }
