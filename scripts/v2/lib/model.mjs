@@ -22,7 +22,7 @@ const REQUIRED_GATES = Object.freeze({
   ],
   douyin: [
     "authenticated", "draftIdentity", "video", "title", "description", "tags",
-    "settings", "cover", "noBlockingDialog", "finalButton", "safety",
+    "settings", "defaults", "visibility", "download", "schedule", "cover", "noBlockingDialog", "finalButton", "safety",
   ],
   wechat_channels: [
     "authenticated", "draftIdentity", "video", "description", "shortTitle",

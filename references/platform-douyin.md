@@ -42,6 +42,12 @@ The description may truthfully contain a requested topic word such as `HTML` or 
 
 Select `不同时发布` for the simultaneous-publication setting unless the package explicitly authorizes cross-posting. Verify the selected radio state; do not infer it from a nearby Toutiao label.
 
+Some creator accounts do not expose a simultaneous-publication control. Fresh live evidence from the missing control, no selected cross-post target, and no active Toutiao sync is the valid default; do not fail merely because an absent radio cannot be clicked.
+
+## Default Publish Settings
+
+Unless a package explicitly requests a scheduled time, keep the platform cover, leave official activities, collection, autonomous declaration, chapters, location, and hot topics unset, and verify `公开`, `允许`, and `立即发布`. The adapter may prefill title, prose, topic entities, and these normal controls while the upload continues. A scheduled package uses `douyinPublish: { "mode": "scheduled", "publishAt": "YYYY-MM-DD HH:mm" }`; do not infer a time from the video.
+
 ## Custom Covers
 
 When enabled, upload both assets in this order:

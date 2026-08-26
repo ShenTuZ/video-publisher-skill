@@ -135,6 +135,13 @@ export function readPackage(packagePath, { config: suppliedConfig } = {}) {
     mode: String(rawWechatPublish.mode || "immediate").trim(),
     publishAt: String(rawWechatPublish.publishAt || "").trim(),
   };
+  const rawDouyinPublish = parsed.douyinPublish && typeof parsed.douyinPublish === "object"
+    ? parsed.douyinPublish
+    : {};
+  const douyinPublish = {
+    mode: String(rawDouyinPublish.mode || "immediate").trim(),
+    publishAt: String(rawDouyinPublish.publishAt || "").trim(),
+  };
   const rawWechatLink = parsed.wechatLink && typeof parsed.wechatLink === "object"
     ? parsed.wechatLink
     : {};
@@ -181,6 +188,7 @@ export function readPackage(packagePath, { config: suppliedConfig } = {}) {
     wechatShortTitle,
     xhsPublish,
     wechatPublish,
+    douyinPublish,
     wechatLink,
     wechatAiGenerated,
     xhsAiGenerated,
@@ -242,6 +250,10 @@ export function validateDouyinPackage(pkg) {
   }
   if (!pkg.douyinTopics.length) errors.push("douyinTopics are required");
   if (pkg.douyinTopics.length > 5) errors.push("douyin supports at most 5 topics");
+  if (!["immediate", "scheduled"].includes(pkg.douyinPublish?.mode)) errors.push("douyinPublish.mode must be immediate or scheduled");
+  if (pkg.douyinPublish?.mode === "scheduled" && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(pkg.douyinPublish.publishAt || "")) {
+    errors.push("douyinPublish.publishAt must use YYYY-MM-DD HH:mm when scheduled");
+  }
   return errors;
 }
 

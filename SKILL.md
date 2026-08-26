@@ -100,7 +100,7 @@ Platform-native defaults:
 
 ```text
 Xiaohongshu: title up to 20 characters, concise description, 3-5 real topic entities, originality off unless explicitly requested
-Douyin: title/body plus 1-5 package-supplied topic entities
+Douyin: title/body plus 1-5 package-supplied topic entities, platform cover, no extra activities/components, public visibility, downloads allowed, and immediate publish unless `douyinPublish` explicitly requests a time
 WeChat Channels: description and sanitized short title are prefilled before upload; location is preserved, collection is untouched, and activity remains “不参与活动”
 ```
 

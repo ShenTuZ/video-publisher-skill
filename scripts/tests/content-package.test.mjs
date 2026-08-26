@@ -70,6 +70,19 @@ test("Douyin topics come from the package instead of account-specific defaults",
   });
 });
 
+test("Douyin defaults to immediate publish and validates scheduled timestamps", async () => {
+  await withTempDir(async root => {
+    const packagePath = path.join(root, "package.json");
+    await fs.promises.writeFile(packagePath, JSON.stringify({ title: "Douyin defaults", douyinTopics: ["Test"] }));
+    let pkg = readPackage(packagePath, { config: defaultConfig() });
+    assert.deepEqual(pkg.douyinPublish, { mode: "immediate", publishAt: "" });
+    assert.deepEqual(validateDouyinPackage(pkg), []);
+    await fs.promises.writeFile(packagePath, JSON.stringify({ title: "Douyin schedule", douyinTopics: ["Test"], douyinPublish: { mode: "scheduled", publishAt: "2026/08/27 13:00" } }));
+    pkg = readPackage(packagePath, { config: defaultConfig() });
+    assert.match(validateDouyinPackage(pkg).join("; "), /YYYY-MM-DD HH:mm/);
+  });
+});
+
 test("an existing cover asset needs only its file path and ratio", async () => {
   await withTempDir(async root => {
     const coverPath = path.join(root, "cover-3x4.png");

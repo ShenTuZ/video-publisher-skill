@@ -21,7 +21,7 @@ import { runPool, SerialQueue } from "./lib/scheduler.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.join(os.homedir(), ".video-publisher", "v2-jobs");
-const FAST_OVERLAP_PLATFORMS = new Set(["xiaohongshu", "wechat_channels"]);
+const FAST_OVERLAP_PLATFORMS = new Set(["xiaohongshu", "douyin", "wechat_channels"]);
 const AUTO_PUBLISH_PLATFORMS = new Set(["xiaohongshu", "wechat_channels"]);
 const validators = { xiaohongshu: validateXiaohongshuPackage, douyin: validateDouyinPackage, wechat_channels: validateWechatChannelsPackage };
 
@@ -268,7 +268,7 @@ async function main() {
   const persistentSingleFastPlatform = !args.inspectOnly
     && args.platforms.length === 1
     && activePlatforms().length === 1
-    && FAST_OVERLAP_PLATFORMS.has(activePlatforms()[0]);
+    && new Set(["xiaohongshu", "wechat_channels"]).has(activePlatforms()[0]);
 
   if (persistentSingleFastPlatform) {
     const platform=activePlatforms()[0];

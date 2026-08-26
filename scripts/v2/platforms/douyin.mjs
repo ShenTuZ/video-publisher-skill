@@ -1,6 +1,7 @@
 const douyinTitle = pkg.platformTitle.douyin;
 const douyinDescription = pkg.douyinDescription;
 const douyinTopics = pkg.douyinTopics;
+const douyinPublish = pkg.douyinPublish;
 const douyinCustomCover = pkg.cover?.uploadCustomCover === true;
 const douyinCoverAssets = [
   { slot: 'portrait', ratio: '3:4', path: String(pkg.cover?.vertical3x4Path || '') },
@@ -59,6 +60,26 @@ async function inspectDouyin() {
     const syncRadios=[...document.querySelectorAll('label')].map(el=>({text:compact(el.innerText||el.textContent||''),input:el.querySelector('input.radio-native-p6VBGt,input[type="checkbox"]')})).filter(item=>/^(不同时发布|同时发布到)/.test(item.text))
     const noSyncChecked=Boolean(syncRadios.find(item=>item.text.startsWith('不同时发布'))?.input?.checked)
     const simultaneousChecked=Boolean(syncRadios.find(item=>item.text.startsWith('同时发布到'))?.input?.checked)
+    const radios=[...document.querySelectorAll('label')].map(el=>({text:compact(el.innerText||el.textContent||''),checked:el.getAttribute('data-checked')==='true',input:el.querySelector('input.radio-native-p6VBGt,input[type="checkbox"]')}))
+    const radioChecked=label=>radios.some(item=>item.text===label&&(item.checked||item.input?.getAttribute('checked')==='true'))
+    const collectionText=compact(document.querySelector('.select-collection-nkL6sA')?.innerText||'')
+    const declarationText=compact([...document.querySelectorAll('section')].find(el=>compact(el.querySelector('.title-cnbkZe')?.innerText||'')==='自主声明')?.querySelector('.selectText-XSrMFZ')?.innerText||'')
+    const locationText=compact(document.querySelector('#douyin_creator_pc_anchor_jump .semi-select-selection-text')?.innerText||'')
+    const hotspotText=compact([...document.querySelectorAll('[class*="content"]')].find(el=>compact(el.querySelector('.title-content-oaqcSp')?.innerText||'')==='关联热点')?.querySelector('.semi-select-selection-text')?.innerText||'')
+    const activityEntities=[...scope.querySelectorAll('[data-mention="activity"]')].map(el=>compact(el.innerText||el.textContent||'')).filter(Boolean)
+    const defaults={
+      officialActivity:activityEntities.length===0,
+      collection:collectionText==='请选择合集',
+      declaration:declarationText==='请选择自主声明',
+      chapters:/已添加的章节数量会在这里显示/.test(text),
+      location:locationText==='输入地理位置',
+      hotspot:hotspotText==='点击输入热点词',
+    }
+    const visibility=radioChecked('公开')?'公开':radioChecked('好友可见')?'好友可见':radioChecked('仅自己可见')?'仅自己可见':''
+    const download=radioChecked('允许')?'允许':radioChecked('不允许')?'不允许':''
+    const immediate=radioChecked('立即发布')
+    const scheduled=radioChecked('定时发布')
+    const scheduleValues=[...document.querySelectorAll('input')].map(el=>String(el.value||'').trim()).filter(value=>/^\d{4}[-/]\d{2}[-/]\d{2}/.test(value))
     const coverUrls = {}
     for (const [slot,re] of [['landscape',/横封面\s*4\s*:\s*3|横封面4:3/],['portrait',/竖封面\s*3\s*:\s*4|竖封面3:4/]]) {
       const card=[...document.querySelectorAll('.coverControl-CjlzqC')].find(el=>re.test(compact(el.innerText||el.textContent||'')))
@@ -69,7 +90,7 @@ async function inspectDouyin() {
     const dialogs=[...document.querySelectorAll('[role="dialog"],.semi-modal,[class*="modal-mask"],[class*="dialog-mask"]')]
       .map(el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return {text:compact(el.innerText||el.textContent||'').slice(0,500),cls:String(el.className||''),w:r.width,h:r.height,display:s.display,visibility:s.visibility,opacity:s.opacity}})
       .filter(item=>item.w>20&&item.h>20&&item.display!=='none'&&item.visibility!=='hidden'&&!/animate-hide|leave-active/.test(item.cls))
-    return {text:text.slice(0,2800),title,editorText,prose,selected,plainResidue,duplicates,tokenCounts,uploadSucceeded,uploading,uploadFailed,loginRequired,resumeDialog,identityMatches,identityEmpty,knownMisroutedInput,syncOn,syncFound:Boolean(sync),noSyncChecked,simultaneousChecked,coverUrls,dialogs}
+    return {text:text.slice(0,2800),title,editorText,prose,selected,plainResidue,duplicates,tokenCounts,uploadSucceeded,uploading,uploadFailed,loginRequired,resumeDialog,identityMatches,identityEmpty,knownMisroutedInput,syncOn,syncFound:Boolean(sync)||syncRadios.length>0,noSyncChecked,simultaneousChecked,defaults,visibility,download,immediate,scheduled,scheduleValues,coverUrls,dialogs}
   })(${JSON.stringify(douyinTitle)}, ${JSON.stringify(douyinDescription)}, ${JSON.stringify(douyinTopics)})`);
   const buttons = await inspectFinalButtons(/^发布$/);
   const finalButton = buttons.find(button=>button.buttonish) || buttons[0] || null;
@@ -88,7 +109,13 @@ async function inspectDouyin() {
       title: state.title===douyinTitle ? okGate({expected:douyinTitle,actual:state.title}) : failedGate({expected:douyinTitle,actual:state.title}),
       description: state.prose===douyinDescription ? okGate({expected:douyinDescription,actual:state.prose}) : failedGate({expected:douyinDescription,actual:state.prose,editorText:state.editorText}),
       tags: state.selected.length===douyinTopics.length&&!state.plainResidue.length&&!state.duplicates.length ? okGate({requested:douyinTopics,selected:state.selected,tokenCounts:state.tokenCounts}) : failedGate({requested:douyinTopics,selected:state.selected,plainResidue:state.plainResidue,duplicates:state.duplicates,tokenCounts:state.tokenCounts,editorText:state.editorText}),
-      settings: state.noSyncChecked&&!state.syncOn&&!state.simultaneousChecked ? okGate({simultaneousPublish:false,toutiaoSync:false}) : failedGate({simultaneousPublish:state.simultaneousChecked,noSyncChecked:state.noSyncChecked,toutiaoSync:state.syncOn,syncFound:state.syncFound}),
+      settings: (!state.syncFound||state.noSyncChecked)&&!state.syncOn&&!state.simultaneousChecked ? okGate({simultaneousPublish:false,toutiaoSync:false,controlPresent:state.syncFound}) : failedGate({simultaneousPublish:state.simultaneousChecked,noSyncChecked:state.noSyncChecked,toutiaoSync:state.syncOn,syncFound:state.syncFound}),
+      defaults: Object.values(state.defaults).every(Boolean) ? okGate(state.defaults) : failedGate(state.defaults),
+      visibility: state.visibility==='公开' ? okGate({expected:'公开',actual:state.visibility}) : failedGate({expected:'公开',actual:state.visibility}),
+      download: state.download==='允许' ? okGate({expected:'允许',actual:state.download}) : failedGate({expected:'允许',actual:state.download}),
+      schedule: douyinPublish.mode==='immediate'
+        ? (state.immediate&&!state.scheduled ? okGate({expected:douyinPublish,actual:{mode:'immediate'}}) : failedGate({expected:douyinPublish,actual:{mode:state.scheduled?'scheduled':'unknown'},scheduleValues:state.scheduleValues}))
+        : (state.scheduled&&state.scheduleValues.some(value=>value.replaceAll('/','-')===douyinPublish.publishAt) ? okGate({expected:douyinPublish,actual:{mode:'scheduled',publishAt:state.scheduleValues}}) : failedGate({expected:douyinPublish,actual:{mode:state.scheduled?'scheduled':'immediate',publishAt:state.scheduleValues}})),
       cover: coverReceiptOk||defaultCoverOk ? okGate({custom:douyinCustomCover,urls:state.coverUrls,receipt}) : failedGate({custom:douyinCustomCover,urls:state.coverUrls,receipt,reason:douyinCustomCover&&!receipt?'custom cover receipt missing':'cover not verified'}),
       noBlockingDialog: state.dialogs.length===0 ? okGate({active:[]}) : failedGate({active:state.dialogs}),
       finalButton: finalButton&&!finalButton.disabled ? okGate(finalButton) : failedGate({buttons}),
@@ -158,6 +185,71 @@ async function uploadDouyin() {
   }
   const after=await inspectDouyin();
   return {...after,blocker:typedBlocker('UPLOAD_STALLED','抖音视频重试后仍未稳定完成',{retryable:true,evidence:after.gates.video.evidence})};
+}
+
+async function startDouyinUpload() {
+  const before=await inspectDouyin();
+  if(before.gates.video.ok)return {...before,actions:{upload:{mode:'already_ready'}}};
+  if(!before.gates.draftIdentity.ok)return {...before,blocker:typedBlocker('FOREIGN_DRAFT','抖音当前编辑器属于其他视频草稿',{evidence:before.gates.draftIdentity.evidence})};
+  if(before.gates.video.evidence?.uploading)return {...before,actions:{upload:{mode:'resume_existing'}}};
+  const exposed=await js(String.raw`(() => {const input=[...document.querySelectorAll('input[type=file]')].find(el=>/video|\.mp4|\.mov|\.mkv|\.flv/i.test(el.accept||''));if(!input)return {ok:false,reason:'douyin video input missing'};input.value='';input.id='vp2-douyin-video';return {ok:true,selector:'#vp2-douyin-video'}})()`);
+  if(!exposed.ok)return {...before,blocker:typedBlocker('SELECTOR_DRIFT',exposed.reason)};
+  try{await uploadFile(exposed.selector,videoPath)}catch(error){return {...before,blocker:typedBlocker('UPLOAD_NOT_STARTED',String(error?.message||error),{retryable:true})};}
+  for(let attempt=0;attempt<30;attempt+=1){
+    await wait(.2);
+    const current=await inspectDouyin();
+    const formVisible=current.gates.finalButton.ok||current.gates.title.evidence?.actual!==undefined;
+    if(current.gates.video.evidence?.uploading||current.gates.video.ok||formVisible)return {...current,actions:{upload:{mode:'injected'}}};
+    if(current.gates.video.evidence?.failed)return {...current,blocker:typedBlocker('PLATFORM_REJECTED_ASSET','抖音明确显示视频上传失败',{retryable:true})};
+  }
+  return {...(await inspectDouyin()),blocker:typedBlocker('UPLOAD_NOT_STARTED','抖音文件注入后没有出现编辑表单或上传状态',{retryable:true})};
+}
+
+async function ensureDouyinChoice(label, gateName) {
+  const before=await inspectDouyin();
+  if(before.gates[gateName]?.ok)return {ok:true,already:true};
+  const target=await js(String.raw`((label) => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden'};const item=[...document.querySelectorAll('label')].find(el=>visible(el)&&compact(el.innerText||el.textContent||'')===label);if(!item)return {ok:false,reason:'douyin choice missing: '+label};item.id='vp2-douyin-choice';item.scrollIntoView({block:'center'});return {ok:true,selected:item.getAttribute('data-checked')==='true'}})(${JSON.stringify(label)})`);
+  if(!target.ok)return target;
+  if(!target.selected)await click('#vp2-douyin-choice',{label:`select douyin ${label}`}).catch(()=>{});
+  await wait(.3);
+  const after=await inspectDouyin();
+  return after.gates[gateName]?.ok?{ok:true,changed:!target.selected}:{ok:false,reason:`douyin choice did not persist: ${label}`,evidence:after.gates[gateName]?.evidence};
+}
+
+async function ensureDouyinPublishSettings() {
+  const actions={};
+  actions.visibility=await ensureDouyinChoice('公开','visibility');
+  if(!actions.visibility.ok)return {ok:false,actions,reason:actions.visibility.reason};
+  actions.download=await ensureDouyinChoice('允许','download');
+  if(!actions.download.ok)return {ok:false,actions,reason:actions.download.reason};
+  if(douyinPublish.mode!=='immediate')return {ok:false,actions,reason:'douyin scheduled publishing has not yet been live-accepted'};
+  actions.schedule=await ensureDouyinChoice('立即发布','schedule');
+  return actions.schedule.ok?{ok:true,actions}:{ok:false,actions,reason:actions.schedule.reason};
+}
+
+async function ensureDouyinMetadata(before) {
+  before ||= await inspectDouyin();
+  const actions={};
+  if(!before.gates.title.ok){actions.title=await setDouyinTitle();if(!actions.title.ok)return {ok:false,actions,reason:actions.title.reason};}
+  if(!(before.gates.description.ok&&before.gates.tags.ok)){
+    const recovered=await recoverDouyinTopicPrefix(before);let startIndex=0;
+    if(recovered.ok){actions.bodyRecovery=recovered;startIndex=recovered.nextIndex;}
+    else {if(recovered.recoverable||((before.gates.tags.evidence?.selected||[]).length))return {ok:false,actions,reason:recovered.reason};actions.body=await clearAndFillDouyinBody();if(!actions.body.ok)return {ok:false,actions,reason:actions.body.reason};}
+    for(const tag of douyinTopics.slice(startIndex)){const added=await addDouyinTopic(tag);(actions.topics ||= []).push({tag,...added});if(!added.ok)return {ok:false,actions,reason:added.reason};}
+  }
+  return {ok:true,actions};
+}
+
+async function prefillDouyin() {
+  const before=await inspectDouyin();
+  if(!before.gates.draftIdentity.ok)return {...before,blocker:typedBlocker('FOREIGN_DRAFT','抖音当前编辑器属于其他视频草稿',{evidence:before.gates.draftIdentity.evidence})};
+  const metadata=await ensureDouyinMetadata(before);
+  if(!metadata.ok)return {...(await inspectDouyin()),actions:metadata.actions,blocker:typedBlocker('ACTION_FAILED',metadata.reason,{evidence:metadata})};
+  const settings=await ensureDouyinPublishSettings();
+  if(!settings.ok)return {...(await inspectDouyin()),actions:{...metadata.actions,settings},blocker:typedBlocker('SELECTOR_DRIFT',settings.reason,{evidence:settings})};
+  const sync=await turnOffDouyinSync();
+  if(!sync.ok)return {...(await inspectDouyin()),actions:{...metadata.actions,settings,sync},blocker:typedBlocker('SELECTOR_DRIFT',sync.reason,{evidence:sync})};
+  return {...(await inspectDouyin()),actions:{...metadata.actions,settings,sync}};
 }
 
 async function setDouyinTitle() {
@@ -328,8 +420,8 @@ async function recoverDouyinTopicPrefix(before) {
 }
 
 async function turnOffDouyinSync() {
-  const located=await js(String.raw`(() => {const c=v=>String(v||'').replace(/\s+/g,' ').trim();const label=[...document.querySelectorAll('label')].find(el=>c(el.innerText||el.textContent||'').startsWith('不同时发布'));if(!label)return {ok:false,reason:'douyin no-sync radio missing'};const input=label.querySelector('input');label.scrollIntoView({block:'center',inline:'center'});const r=label.getBoundingClientRect();return {ok:true,on:Boolean(input?.checked),point:{x:r.left+r.width/2,y:r.top+r.height/2}}})()`);
-  if(!located.ok)return located;if(!located.on){await click([located.point.x,located.point.y],{label:'disable douyin simultaneous publish'}).catch(()=>{});await wait(1)}const after=await inspectDouyin();return after.gates.settings.ok?{ok:true,wasOn:!located.on}:{ok:false,reason:'douyin simultaneous publish remained enabled',evidence:after.gates.settings.evidence};
+  const located=await js(String.raw`(() => {const c=v=>String(v||'').replace(/\s+/g,' ').trim();const label=[...document.querySelectorAll('label')].find(el=>c(el.innerText||el.textContent||'').startsWith('不同时发布'));if(!label)return {ok:true,absent:true};const input=label.querySelector('input');label.scrollIntoView({block:'center',inline:'center'});const r=label.getBoundingClientRect();return {ok:true,on:label.getAttribute('data-checked')==='true'||Boolean(input?.checked),point:{x:r.left+r.width/2,y:r.top+r.height/2}}})()`);
+  if(!located.ok)return located;if(located.absent)return {ok:true,already:true,controlPresent:false};if(!located.on){await click([located.point.x,located.point.y],{label:'disable douyin simultaneous publish'}).catch(()=>{});await wait(1)}const after=await inspectDouyin();return after.gates.settings.ok?{ok:true,wasOn:!located.on}:{ok:false,reason:'douyin simultaneous publish remained enabled',evidence:after.gates.settings.evidence};
 }
 
 async function uploadDouyinCoverSlot(asset) {
@@ -374,28 +466,11 @@ async function mutateDouyin() {
   const before = await inspectDouyin();
   if (!before.gates.video.ok) return { ...before, blocker: typedBlocker('STATE_AMBIGUOUS', '抖音没有可修复的已上传视频') };
   const actions = {};
-  if (!before.gates.title.ok) {
-    actions.title = await setDouyinTitle();
-    if (!actions.title.ok) return { ...(await inspectDouyin()), blocker: typedBlocker('ACTION_FAILED', actions.title.reason, { evidence: actions.title }) };
-  }
-  if (!(before.gates.description.ok && before.gates.tags.ok)) {
-    const recovered = await recoverDouyinTopicPrefix(before);
-    let startIndex = 0;
-    if (recovered.ok) {
-      actions.bodyRecovery = recovered;
-      startIndex = recovered.nextIndex;
-    } else {
-      if (recovered.recoverable) return { ...(await inspectDouyin()), actions, blocker: typedBlocker('ACTION_FAILED', recovered.reason, { evidence: recovered }) };
-      if ((before.gates.tags.evidence?.selected||[]).length) return { ...(await inspectDouyin()), actions, blocker: typedBlocker('STATE_AMBIGUOUS', recovered.reason, { evidence: recovered }) };
-      actions.body = await clearAndFillDouyinBody();
-      if (!actions.body.ok) return { ...(await inspectDouyin()), blocker: typedBlocker('ACTION_FAILED', actions.body.reason) };
-    }
-    for (const tag of douyinTopics.slice(startIndex)) {
-      const added = await addDouyinTopic(tag);
-      (actions.topics ||= []).push({ tag, ...added });
-      if (!added.ok) return { ...(await inspectDouyin()), actions, blocker: typedBlocker('ACTION_FAILED', added.reason, { evidence: added }) };
-    }
-  }
+  const metadata=await ensureDouyinMetadata(before);
+  Object.assign(actions,metadata.actions);
+  if(!metadata.ok)return {...(await inspectDouyin()),actions,blocker:typedBlocker('ACTION_FAILED',metadata.reason,{evidence:metadata})};
+  actions.publishSettings=await ensureDouyinPublishSettings();
+  if(!actions.publishSettings.ok)return {...(await inspectDouyin()),actions,blocker:typedBlocker('SELECTOR_DRIFT',actions.publishSettings.reason,{evidence:actions.publishSettings})};
   actions.settings = await turnOffDouyinSync();
   if (!actions.settings.ok) return { ...(await inspectDouyin()), blocker: typedBlocker('SELECTOR_DRIFT', actions.settings.reason) };
 
@@ -447,4 +522,4 @@ async function mutateDouyin() {
   return { ...after, actions, receipts };
 }
 
-async function runPlatformPhase(){if(phase==='inspect'||phase==='verify')return await inspectDouyin();if(phase==='upload')return await uploadDouyin();if(phase==='mutate')return await mutateDouyin();return {...(await inspectDouyin()),blocker:typedBlocker('ACTION_FAILED',`unsupported Douyin phase: ${phase}`)}}
+async function runPlatformPhase(){if(phase==='inspect'||phase==='verify')return await inspectDouyin();if(phase==='inject')return await startDouyinUpload();if(phase==='prefill')return await prefillDouyin();if(phase==='wait_upload')return await waitExistingDouyinUpload();if(phase==='upload')return await uploadDouyin();if(phase==='mutate')return await mutateDouyin();return {...(await inspectDouyin()),blocker:typedBlocker('ACTION_FAILED',`unsupported Douyin phase: ${phase}`)}}
