@@ -254,20 +254,28 @@ async function main() {
     return { observation, verdict };
   }
 
+  const activePlatforms = () => runnablePlatforms.filter(platform => state.platforms[platform].status !== "published");
+  if (!args.inspectOnly && args.platforms.every(platform => state.platforms[platform].status === "published")) {
+    state.status = "published";
+    await store.save(); await store.close();
+    console.log(JSON.stringify(summary(state, args.platforms, store.statePath), null, 2));
+    return;
+  }
+
   const persistentSingleFastPlatform = !args.inspectOnly
     && args.platforms.length === 1
-    && runnablePlatforms.length === 1
-    && FAST_OVERLAP_PLATFORMS.has(runnablePlatforms[0]);
+    && activePlatforms().length === 1
+    && FAST_OVERLAP_PLATFORMS.has(activePlatforms()[0]);
 
   if (persistentSingleFastPlatform) {
-    const platform=runnablePlatforms[0];
+    const platform=activePlatforms()[0];
     console.error(`[video-publisher-v2] persistent ${platform} prepare: inspect -> inject -> overlap prefill -> upload wait -> repair`);
     await invoke(platform, "prepare");
     if (state.platforms[platform].status !== "blocked_user") {
       console.error(`[video-publisher-v2] independent ${platform} verify`);
       await invoke(platform, "verify");
     }
-    let complete = args.platforms.every(platform => state.platforms[platform].verdict?.ready === true);
+    let complete = args.platforms.every(platform => state.platforms[platform].status === "published" || state.platforms[platform].verdict?.ready === true);
     if (complete && args.autoPublishOnReady) {
       console.error("[video-publisher-v2] READY verified; automatic final publish authorized by user configuration");
       await invoke(platform, "publish");
@@ -281,7 +289,7 @@ async function main() {
   }
 
   console.error(`[video-publisher-v2] inspect parallel=${args.checkConcurrency}`);
-  await runPool(runnablePlatforms, args.checkConcurrency, platform => invoke(platform, "inspect"));
+  await runPool(activePlatforms(), args.checkConcurrency, platform => invoke(platform, "inspect"));
   if (args.inspectOnly) {
     state.status = runnablePlatforms.length === args.platforms.length ? "inspected" : "blocked";
     await store.save();
@@ -291,7 +299,7 @@ async function main() {
     return;
   }
 
-  const userBlocked = runnablePlatforms.find(platform => state.platforms[platform].status === "blocked_user");
+  const userBlocked = activePlatforms().find(platform => state.platforms[platform].status === "blocked_user");
   if (userBlocked) {
     state.status = "paused_user";
     await store.save(); await store.close();
@@ -300,7 +308,7 @@ async function main() {
   }
 
   const ui = new SerialQueue();
-  const injectTargets = inputChannelBroken ? [] : runnablePlatforms.filter(platform => FAST_OVERLAP_PLATFORMS.has(platform) && state.platforms[platform].status === "needs_upload");
+  const injectTargets = inputChannelBroken ? [] : activePlatforms().filter(platform => FAST_OVERLAP_PLATFORMS.has(platform) && state.platforms[platform].status === "needs_upload");
   console.error(`[video-publisher-v2] fast inject parallel=${args.uploadConcurrency}: ${injectTargets.join(",") || "none"}`);
   await runPool(injectTargets, args.uploadConcurrency, platform => invoke(platform, "inject"));
 
@@ -313,7 +321,7 @@ async function main() {
   await ui.idle();
 
   const fastWaitTargets = inputChannelBroken ? [] : injectTargets.filter(platform => state.platforms[platform].status === "needs_upload");
-  const legacyUploadTargets = inputChannelBroken ? [] : runnablePlatforms.filter(platform => !FAST_OVERLAP_PLATFORMS.has(platform) && state.platforms[platform].status === "needs_upload");
+  const legacyUploadTargets = inputChannelBroken ? [] : activePlatforms().filter(platform => !FAST_OVERLAP_PLATFORMS.has(platform) && state.platforms[platform].status === "needs_upload");
   const uploadWork = [
     ...fastWaitTargets.map(platform => ({ platform, phase: "wait_upload" })),
     ...legacyUploadTargets.map(platform => ({ platform, phase: "upload" })),
@@ -328,7 +336,7 @@ async function main() {
   // A broken browser input channel is also a phase-wide circuit breaker: wait for the
   // parallel runners, skip every later mutation, and let final read-only verification
   // record whatever page truth Ego exposes after restart.
-  const mutationTargets = inputChannelBroken ? [] : runnablePlatforms.filter(platform => state.platforms[platform].status === "needs_mutation");
+  const mutationTargets = inputChannelBroken ? [] : activePlatforms().filter(platform => state.platforms[platform].status === "needs_mutation");
   console.error(`[video-publisher-v2] UI serial: ${mutationTargets.join(",") || "none"}${inputChannelBroken ? " (input channel broken)" : ""}`);
   for (const platform of mutationTargets) {
     if (inputChannelBroken) break;
@@ -337,11 +345,11 @@ async function main() {
   await ui.idle();
 
   console.error(`[video-publisher-v2] final verify parallel=${args.checkConcurrency}`);
-  await runPool(runnablePlatforms.filter(platform => state.platforms[platform].status !== "blocked_user"), args.checkConcurrency, platform => invoke(platform, "verify"));
+  await runPool(activePlatforms().filter(platform => state.platforms[platform].status !== "blocked_user"), args.checkConcurrency, platform => invoke(platform, "verify"));
 
   // One targeted retry is allowed only for an idempotent mutation whose fresh verifier
   // returned STATE_AMBIGUOUS. Typed action/auth/risk-control failures are never looped.
-  const retryTargets = (inputChannelBroken ? [] : runnablePlatforms).filter(platform => {
+  const retryTargets = (inputChannelBroken ? [] : activePlatforms()).filter(platform => {
     const verdict = state.platforms[platform].verdict;
     return state.platforms[platform].status === "needs_mutation" && verdict?.blocker?.code === BLOCKER.STATE_AMBIGUOUS;
   });
@@ -352,9 +360,9 @@ async function main() {
   await ui.idle();
   if (retryTargets.length) await runPool(retryTargets, args.checkConcurrency, platform => invoke(platform, "verify"));
 
-  let complete = args.platforms.every(platform => state.platforms[platform].verdict?.ready === true);
+  let complete = args.platforms.every(platform => state.platforms[platform].status === "published" || state.platforms[platform].verdict?.ready === true);
   if (complete && args.autoPublishOnReady) {
-    for (const platform of args.platforms) {
+    for (const platform of args.platforms.filter(platform => state.platforms[platform].status !== "published")) {
       await ui.enqueue(() => invoke(platform, "publish"));
       if (state.platforms[platform].status !== "published") break;
     }

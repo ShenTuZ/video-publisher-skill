@@ -325,22 +325,21 @@ async function probeWechatPublishResult(){return await js(String.raw`(() => {con
 
 async function publishWechatChannels(){
   const before=await inspectWechatChannels();
-  const missing=Object.entries(before.gates).filter(([,gate])=>gate?.ok!==true).map(([name])=>name);
-  if(missing.length)return {...before,blocker:typedBlocker('STATE_AMBIGUOUS','视频号没有通过发表前全部页面条件',{evidence:{missing}})};
   const existing=await probeWechatPublishResult();
   if(existing.confirmed)return {...before,published:true,finalPublishClicked:false,publishReceipt:{confirmed:true,alreadyPublished:true,signals:existing.signals,url:existing.url,at:new Date().toISOString()}};
+  const originalityUpsell=existing.dialogs.find(item=>/声明原创的视频/.test(item.text));
+  const missing=Object.entries(before.gates).filter(([name,gate])=>gate?.ok!==true&&!(name==='noBlockingDialog'&&originalityUpsell)).map(([name])=>name);
+  if(missing.length)return {...before,blocker:typedBlocker('STATE_AMBIGUOUS','视频号没有通过发表前全部页面条件',{evidence:{missing}})};
   const authorization=await authorizeFinalPublishGuard();
   if(!authorization.ok)return {...before,blocker:typedBlocker('ACTION_FAILED',authorization.reason,{evidence:authorization})};
-  const target=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const roots=[document,...[...document.querySelectorAll('*')].map(el=>el.shadowRoot).filter(Boolean)];const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>20&&r.height>20&&s.display!=='none'&&s.visibility!=='hidden'};const el=roots.flatMap(root=>[...root.querySelectorAll('button,[role="button"],.weui-desktop-btn')]).find(el=>visible(el)&&compact(el.innerText||el.textContent||'')==='发表'&&!el.disabled);if(!el)return {ok:false,reason:'wechat ready publish button missing'};el.scrollIntoView({block:'center',inline:'center'});const r=el.getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2}})()`);
-  if(!target.ok)return {...before,blocker:typedBlocker('SELECTOR_DRIFT',target.reason,{evidence:target})};
-  await click([target.x,target.y],{label:'publish verified WeChat video'});
   let confirmationClicked=false;
+  if(originalityUpsell){const expectedButton=wechatOriginal?'声明原创':'直接发表';const button=originalityUpsell.buttons.find(item=>item.text===expectedButton&&!item.disabled);if(!button)return {...before,blocker:typedBlocker('SELECTOR_DRIFT','wechat originality upsell action missing',{evidence:{expectedButton,originalityUpsell}})};await click([button.x,button.y],{label:expectedButton==='直接发表'?'confirm direct WeChat publish':'confirm original WeChat publish'});confirmationClicked=true}else{const target=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const roots=[document,...[...document.querySelectorAll('*')].map(el=>el.shadowRoot).filter(Boolean)];const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>20&&r.height>20&&s.display!=='none'&&s.visibility!=='hidden'};const el=roots.flatMap(root=>[...root.querySelectorAll('button,[role="button"],.weui-desktop-btn')]).find(el=>visible(el)&&compact(el.innerText||el.textContent||'')==='发表'&&!el.disabled);if(!el)return {ok:false,reason:'wechat ready publish button missing'};el.scrollIntoView({block:'center',inline:'center'});const r=el.getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2}})()`);if(!target.ok)return {...before,blocker:typedBlocker('SELECTOR_DRIFT',target.reason,{evidence:target})};await click([target.x,target.y],{label:'publish verified WeChat video'});}
   for(let attempt=0;attempt<24;attempt+=1){
     await wait(.5);
     const probe=await probeWechatPublishResult();
     if(probe.confirmed)return {...before,published:true,finalPublishClicked:true,publishReceipt:{confirmed:true,alreadyPublished:false,confirmationClicked,signals:probe.signals,url:probe.url,at:new Date().toISOString()}};
     if(probe.errors.length)return {...before,finalPublishClicked:true,blocker:typedBlocker('ACTION_FAILED','视频号返回发表失败',{evidence:probe})};
-    if(!confirmationClicked){const dialog=probe.dialogs.find(item=>/发布|发表|提交/.test(item.text));const button=dialog?.buttons.find(item=>/^(确认|确定|发表|确认发表)$/.test(item.text)&&!item.disabled);if(button){await click([button.x,button.y],{label:'confirm verified WeChat publish'});confirmationClicked=true}}
+    if(!confirmationClicked){const dialog=probe.dialogs.find(item=>/发布|发表|提交|声明原创的视频/.test(item.text));const expectedButton=/声明原创的视频/.test(dialog?.text||'')?(wechatOriginal?'声明原创':'直接发表'):null;const button=dialog?.buttons.find(item=>(expectedButton?item.text===expectedButton:/^(确认|确定|发表|确认发表)$/.test(item.text))&&!item.disabled);if(button){await click([button.x,button.y],{label:expectedButton==='直接发表'?'confirm direct WeChat publish':'confirm verified WeChat publish'});confirmationClicked=true}}
   }
   const after=await probeWechatPublishResult();
   return {...before,finalPublishClicked:true,blocker:typedBlocker('STATE_AMBIGUOUS','视频号点击发表后没有出现成功证据',{retryable:true,evidence:after})};

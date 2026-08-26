@@ -111,6 +111,7 @@ test("WeChat per-video controls are verified without touching location or collec
   assert.match(source, /label:wechatOriginal\?'enable original declaration':'disable original declaration'/);
   assert.match(source, /authorizeFinalPublishGuard\(\)/, "final publish must pass through the READY-gated guard authorization");
   assert.match(source, /publishReceipt:\{confirmed:true/, "final publish must return explicit success evidence");
+  assert.match(source, /wechatOriginal\?'声明原创':'直接发表'/, "final originality upsell must follow the package originality intent");
 
   const order = ["actions.textFields", "actions.activity", "actions.schedule", "actions.aiLabel", "actions.productLink"]
     .map(token => mutation.indexOf(token));

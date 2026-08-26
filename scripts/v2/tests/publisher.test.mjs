@@ -244,6 +244,30 @@ test("Xiaohongshu auto-publishes only after persistent prepare and independent R
   assert.equal(summary.platforms.xiaohongshu.published,true);
 });
 
+test("a retry never re-enters a platform that already published", async () => {
+  const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-partial-publish-retry-test-"));
+  const videoPath=path.join(root,"sample-video.mp4");
+  const packagePath=path.join(root,"package.json");
+  const configPath=path.join(root,"config.json");
+  const firstLog=path.join(root,"first.ndjson");
+  const retryLog=path.join(root,"retry.ndjson");
+  await fs.promises.writeFile(videoPath,"test video fixture");
+  await fs.promises.writeFile(configPath,JSON.stringify({schemaVersion:2,onboarding:{completed:true},sourceDirectory:root,availablePlatforms:["xiaohongshu","wechat_channels"],defaultPlatforms:["xiaohongshu","wechat_channels"],execution:{checkConcurrency:2,uploadConcurrency:2,autoPublishOnReady:true}}));
+  await fs.promises.writeFile(packagePath,JSON.stringify({videoPath,title:"Partial publish",xhsDescription:"XHS description",xhsTopics:["One","Two","Three"],wechatDescription:"WeChat description\n\n#One #Two #Three",wechatTags:["One","Two","Three"],cover:{uploadCustomCover:false}}));
+  const args=[path.join(V2_DIR,"publisher.mjs"),packagePath,"partial-publish","xiaohongshu","wechat_channels","--state-root",root];
+  const baseEnv={...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs")};
+  const first=await run(process.execPath,args,{env:{...baseEnv,VIDEO_PUBLISHER_V2_MOCK_LOG:firstLog,VIDEO_PUBLISHER_V2_MOCK_BROKEN_CHANNEL:"wechat_channels:publish"}});
+  assert.equal(first.code,10,`${first.stderr}\n${first.stdout}`);
+  const firstSummary=JSON.parse(first.stdout);
+  assert.equal(firstSummary.platforms.xiaohongshu.published,true);
+  assert.equal(firstSummary.platforms.wechat_channels.published,false);
+  const retry=await run(process.execPath,args,{env:{...baseEnv,VIDEO_PUBLISHER_V2_MOCK_LOG:retryLog}});
+  assert.equal(retry.code,0,`${retry.stderr}\n${retry.stdout}`);
+  const retryEvents=(await fs.promises.readFile(retryLog,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line));
+  assert.equal(retryEvents.some(item=>item.platform==="xiaohongshu"),false,"published Xiaohongshu must be skipped completely on retry");
+  assert.equal(JSON.parse(retry.stdout).platforms.wechat_channels.published,true);
+});
+
 test("WeChat opt-in originality requires current-run confirmation", async () => {
   const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-wechat-rights-test-"));
   const videoPath=path.join(root,"sample-video.mp4");

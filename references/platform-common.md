@@ -39,6 +39,8 @@ The three lock levels solve different races: the state-root publisher lock seria
 
 Persist the exact task-space name alongside its numeric id. After an Ego crash, ids may be recycled for a different job; a live name mismatch is identity loss, never permission to enter that space. Select or recreate only the stored exact name, invalidate old-space receipts, and verify fresh page truth.
 
+`published` is a terminal per-platform state. If one platform publishes and a later platform fails, every retry must skip the published platform completely—no inspect, upload, mutation, verification, or second final click—and resume only unfinished platforms.
+
 ## Platform Phases
 
 ```text

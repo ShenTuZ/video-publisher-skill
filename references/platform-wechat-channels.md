@@ -88,6 +88,10 @@ Default `wechatPublish.mode` to `immediate`. Override it only when the user expl
 
 When automatic publishing is authorized, the orchestrator runs `publish` only after a fresh READY verifier. The adapter rechecks every WeChat page gate, authorizes version-2 final-button protection, scrolls the exact enabled `发表` button into view, clicks it through Ego, handles at most one scoped publish confirmation, and requires a visible success signal such as `已发表`, `发表成功`, or `定时发表成功`. A click receipt without a success signal is blocked.
 
+Some accounts show a final originality upsell with `直接发表` and `声明原创`. Follow the package exactly: choose `直接发表` when `wechatOriginal:false`, and `声明原创` only when the current video explicitly enabled and confirmed originality. Never let this upsell override the package intent.
+
+On 2026-08-26, a real two-platform 230.5 MB run reached independent READY on Xiaohongshu and WeChat Channels after parallel injection, serialized overlap prefill, and parallel completion waits. Xiaohongshu published first. WeChat then exposed the originality upsell; the first bounded run safely stopped without choosing. The repaired same-task `publish` phase recognized `wechatOriginal:false`, clicked exact `直接发表`, and verified `已发表`. No upload or metadata action was repeated.
+
 For the current-day picker, open the read-only main date input, select the real time sub-input, type the requested `HH:mm`, and click outside the picker to commit. Verify the main value. If the requested date differs from the date offered by the current picker, block rather than selecting the wrong day.
 
 ## Product Link
