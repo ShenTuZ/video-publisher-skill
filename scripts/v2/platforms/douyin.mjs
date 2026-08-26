@@ -568,7 +568,8 @@ async function probeDouyinPublishResult(){return await js(String.raw`(() => {con
 
 async function publishDouyin(){
   const before=await inspectDouyin();
-  const missing=Object.entries(before.gates).filter(([,gate])=>gate?.ok!==true).map(([name])=>name);
+  const required=publishProfile==='fast'?['authenticated','draftIdentity','video','title','description','tags','aiLabel','noBlockingDialog','finalButton','safety']:Object.keys(before.gates);
+  const missing=required.filter(name=>before.gates[name]?.ok!==true);
   if(missing.length)return {...before,blocker:typedBlocker('STATE_AMBIGUOUS','抖音没有通过发布前全部页面条件',{evidence:{missing}})};
   const authorization=await authorizeFinalPublishGuard();
   if(!authorization.ok)return {...before,blocker:typedBlocker('ACTION_FAILED',authorization.reason,{evidence:authorization})};

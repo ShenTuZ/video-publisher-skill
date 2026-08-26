@@ -57,6 +57,7 @@ if (!PLATFORMS.includes(platform) || !rawPackagePath || !["inspect", "prepare", 
   process.exit(2);
 }
 const config = loadConfig({ requireOnboarded: true });
+const publishProfile = process.env.VIDEO_PUBLISHER_V2_PUBLISH_PROFILE || config.execution.publishProfile;
 const standingOriginalityPolicy = config.declarations.originalityPolicy === "all_videos_original";
 const packagePath = path.resolve(rawPackagePath);
 if (!fs.existsSync(packagePath)) throw new Error(`Package JSON not found: ${packagePath}`);
@@ -88,6 +89,7 @@ const header = [
   `const receiptCheckpointPath = ${JSON.stringify(process.env.VIDEO_PUBLISHER_V2_CHECKPOINT_PATH || "")};`,
   `const jobFingerprint = ${JSON.stringify(process.env.VIDEO_PUBLISHER_V2_FINGERPRINT || "")};`,
   `const finalPublishAuthorized = ${JSON.stringify(finalPublishAuthorized)};`,
+  `const publishProfile = ${JSON.stringify(publishProfile)};`,
 ].join("\n");
 const fragments = [
   header,

@@ -37,6 +37,7 @@ test("missing or empty configuration requires onboarding", async () => {
   assert.deepEqual(empty.config.defaultPlatforms, []);
   assert.equal(empty.config.declarations.originalityPolicy, "ask_each_run");
   assert.equal(empty.config.execution.autoPublishOnReady, false);
+  assert.equal(empty.config.execution.publishProfile, "fast");
   await fs.promises.rm(root, { recursive: true, force: true });
 });
 
@@ -61,6 +62,7 @@ test("completed onboarding writes a valid private per-user configuration", async
   assert.deepEqual(ready.config.defaultPlatforms, ["douyin", "wechat_channels"]);
   assert.deepEqual(ready.config.platforms.douyin.defaultTopics, ["Tutorial"]);
   assert.equal(ready.config.declarations.originalityPolicy, "all_videos_original");
+  assert.equal(ready.config.execution.publishProfile, "fast");
   assert.equal(fs.statSync(configPath).mode & 0o777, 0o600);
   await fs.promises.rm(root, { recursive: true, force: true });
 });

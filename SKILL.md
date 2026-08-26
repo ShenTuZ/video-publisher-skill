@@ -1,11 +1,11 @@
 ---
 name: video-publisher
-description: Publish videos to Xiaohongshu, Douyin, and WeChat Channels with Ego Lite. Use for onboarding, video intake, copy and tags, upload scheduling, WeChat product links and AI labels, originality declarations, existing-cover upload, workflow extensions, verification, and confirmed final publishing.
+description: Prepare and automate video drafts for Xiaohongshu, Douyin, and WeChat Channels with Ego Lite. Use for onboarding, video intake, copy and tags, upload scheduling, WeChat product links and AI labels, draft recovery, original declarations, existing-cover upload, workflow extensions, and verification before final publish.
 ---
 
 # Video Publisher
 
-Prepare one confirmed video package, verify every selected platform, and publish it. `READY` is the internal pre-publish gate, not the normal endpoint. Use Ego Lite for all live creator-page work.
+Prepare one confirmed video package and drive selected creator platforms to a verified draft state. Use Ego Lite for all live creator-page work.
 
 ## Configuration And Onboarding
 
@@ -19,11 +19,11 @@ If `onboardingRequired` is `true`, stop the publishing flow and onboard the user
 
 Configuration is per user at `$XDG_CONFIG_HOME/video-publisher/config.json`, or `$HOME/.config/video-publisher/config.json`. `VIDEO_PUBLISHER_CONFIG` overrides the path. Never store personal configuration in the shareable Skill folder.
 
-Current-run instructions override package fields; package fields override configuration defaults. A request may select any configured available platform but must not silently add an unavailable one. Never persist cookies, credentials, or video-specific paths. Persist `execution.autoPublishOnReady` only when the user explicitly requests a standing READY-to-publish policy. Read `references/configuration.md` for the schema and onboarding command.
+Current-run instructions override package fields; package fields override configuration defaults. A request may select any configured available platform but must not silently add an unavailable one. Never persist cookies, credentials, or video-specific paths. Persist `execution.autoPublishOnReady` only when the user explicitly requests a standing READY-to-publish policy. `execution.publishProfile` defaults to `fast`; use `--strict` only for first-page adaptation, a blocked platform, or a user-requested full diagnostic. Read `references/configuration.md` for the schema and onboarding command.
 
 ## Safety Boundary
 
-This is a publishing workflow. For a normal user request to publish, pass `--publish-on-ready` so the maintained runner publishes each platform as soon as it independently reaches `READY`; a pending, blocked, or failed sibling does not delay it. An explicitly configured `execution.autoPublishOnReady: true` provides the same standing authorization. Use `--stop-at-ready` only when the user explicitly asks to review a draft before publishing, and use `--inspect-only` for read-only checks. Until publication is authorized, the page-level capture guard remains armed; `READY` requires `guardArmed: true`, `blockedAttempts: 0`, and `finalPublishClicked: false` from fresh page evidence. The later `publish` phase permits the exact final action and requires platform success evidence.
+Default to stopping before the final `发布`, `发布笔记`, or `发表` control. A current-run `--publish-on-ready` instruction or an explicitly configured `execution.autoPublishOnReady: true` authorizes the maintained runner to publish each platform as soon as that platform independently reaches `READY`; a pending, blocked, or failed sibling does not delay it. Until then, the page-level capture guard remains armed; `READY` requires `guardArmed: true`, `blockedAttempts: 0`, and `finalPublishClicked: false` from fresh page evidence. The later `publish` phase receives a separate orchestrator authorization, permits the exact final action, and requires platform success evidence.
 
 Xiaohongshu defaults to `xhsOriginal: false` and WeChat defaults to `wechatOriginal: false`. Only an explicit current-video instruction may set either field to true; true requires the applicable standing policy or current-video confirmation before browser mutation. Never infer originality from the video. Originality remains separate from the optional READY-to-publish policy.
 
@@ -38,8 +38,6 @@ scripts/run-fast-platforms.sh <package.json> [task-suffix] [platform...]
 ```
 
 This invokes `scripts/v2/publisher.mjs`. Use one orchestrator and one Ego Lite task space per platform. Do not delegate live creator-page control to sub Agents.
-
-For normal publication, append `--publish-on-ready`. Use `--stop-at-ready` only for an explicit review-only request.
 
 The publisher acquires a state-root publisher lock and an atomic job-directory lock before state or browser work. Only one video job may control the shared creator accounts at a time. Stale dead-PID locks may be recovered automatically; per-platform locks remain as defense in depth.
 
@@ -92,7 +90,7 @@ verify: independently re-read every required gate
 publish: after READY only, authorize the guarded final action and verify success
 ```
 
-`ready` is computed centrally. Required evidence includes authentication, correct draft identity, fully completed upload, exact platform text and entity state, required declarations/settings, requested cover receipts, no blocking dialog, an enabled final button, and an armed safety guard with no final-publish attempt. Read `references/platform-common.md` for the gate and blocker contract.
+`ready` is computed centrally. Fast mode requires authentication, correct draft identity, completed upload, exact text/topic entities, explicitly requested declarations/settings, no blocking dialog, an enabled final button, and an armed safety guard. It skips untouched default-item gates and the redundant final full-page verification. Strict mode retains every gate and repair. Read `references/platform-common.md` for the gate and blocker contract.
 
 ## Content Package
 
@@ -101,8 +99,8 @@ Use onboarded configuration as defaults, then confirm the exact source, selected
 Platform-native defaults:
 
 ```text
-Xiaohongshu: title up to 20 characters, concise description, 3-5 real topic entities, originality off unless explicitly requested
-Douyin: title/body plus 1-5 package-supplied topic entities, platform cover, no extra activities/components, public visibility, downloads allowed, and immediate publish unless `douyinPublish` explicitly requests a time
+Xiaohongshu: title up to 20 characters, concise description, 2-3 real topic entities by default, originality off unless explicitly requested
+Douyin: title/body plus 2-3 package-supplied topic entities by default, platform cover, no extra activities/components, public visibility, downloads allowed, and immediate publish unless `douyinPublish` explicitly requests a time
 WeChat Channels: description and sanitized short title are prefilled before upload; location is preserved, collection is untouched, and activity remains “不参与活动”
 ```
 
@@ -167,8 +165,8 @@ Generate a meaningful WeChat short-title summary of at most 10 Unicode character
 6. For Xiaohongshu-only or WeChat-only work, run one persistent prepare session; otherwise inspect in parallel, inject missing files, and prove each fast upload has started.
 7. While browser uploads continue, fill metadata through one serial UI controller.
 8. Wait for upload completion in parallel without further input, then repair remaining post-upload fields and covers.
-9. Run independent parallel verification.
-10. Publish each independently READY platform immediately through the authorized `publish` phase and require its own success evidence. Stop at READY only when the user explicitly requests review before publication.
+9. In fast mode, publish each READY platform immediately; run a full independent verification only under `--strict`.
+10. Stop at READY by default. When the user explicitly enabled automatic publishing, require each platform's own success evidence.
 
 Read-only inspection:
 

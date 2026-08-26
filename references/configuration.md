@@ -89,7 +89,8 @@ Continue only after it exits successfully.
   "execution": {
     "checkConcurrency": 4,
     "uploadConcurrency": 4,
-    "autoPublishOnReady": false
+    "autoPublishOnReady": false,
+    "publishProfile": "fast"
   },
   "cover": {
     "uploadExistingByDefault": false
@@ -124,4 +125,4 @@ generic Skill default
 
 Configuration may store reusable preferences, declared platform availability, and the explicitly onboarded standing originality policy. `ask_each_run` requires `--confirm-original-rights` for each mutating run; `all_videos_original` allows the maintained workflow to apply truthful original/self-made declarations without asking again. Never infer or silently upgrade this value.
 
-Never persist cookies, tokens, passwords, or video-specific paths. Platform availability describes declared account capability, not login credentials. `execution.autoPublishOnReady` defaults to false and may become true only after the user explicitly asks for a standing policy. When true, it authorizes only the maintained post-READY publish phase; it does not bypass any page gate, authentication, ownership, originality, or success verification. A current run may override it with `--publish-on-ready` or `--stop-at-ready`.
+Never persist cookies, tokens, passwords, or video-specific paths. Platform availability describes declared account capability, not login credentials. `execution.autoPublishOnReady` defaults to false and may become true only after the user explicitly asks for a standing policy. `execution.publishProfile` defaults to `fast`: it verifies upload, text/topic entities, requested special fields, final-button safety, and success, while skipping untouched default-item gates and the redundant final full-page verification. `strict` retains the complete diagnostics and retry path. A current run may select `--fast` or `--strict`, and may override automatic publishing with `--publish-on-ready` or `--stop-at-ready`.

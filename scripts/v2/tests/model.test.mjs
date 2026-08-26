@@ -64,3 +64,12 @@ test("READY rejects any attempted final-publish interaction even when it was blo
   assert.equal(verdict.ready, false);
   assert.deepEqual(verdict.missing, ["safety"]);
 });
+
+test("fast profile ignores untouched default-item gates but keeps publish safety", () => {
+  const input = observation("douyin", {
+    gates: Object.fromEntries(["settings", "defaults", "visibility", "download", "schedule", "cover"]
+      .map(name => [name, { ok: false, evidence: {} }])),
+  });
+  input.publishProfile = "fast";
+  assert.equal(evaluateObservation(input).ready, true);
+});

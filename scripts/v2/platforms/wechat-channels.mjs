@@ -303,7 +303,8 @@ async function publishWechatChannels(){
   const existing=await probeWechatPublishResult();
   if(existing.confirmed)return {...before,published:true,finalPublishClicked:false,publishReceipt:{confirmed:true,alreadyPublished:true,signals:existing.signals,url:existing.url,at:new Date().toISOString()}};
   const originalityUpsell=existing.dialogs.find(item=>/声明原创的视频/.test(item.text));
-  const missing=Object.entries(before.gates).filter(([name,gate])=>gate?.ok!==true&&!(name==='noBlockingDialog'&&originalityUpsell)).map(([name])=>name);
+  const required=publishProfile==='fast'?['authenticated','draftIdentity','video','description','shortTitle','aiLabel','productLink','original','noBlockingDialog','finalButton','safety']:Object.keys(before.gates);
+  const missing=required.filter(name=>before.gates[name]?.ok!==true&&!(name==='noBlockingDialog'&&originalityUpsell));
   if(missing.length)return {...before,blocker:typedBlocker('STATE_AMBIGUOUS','视频号没有通过发表前全部页面条件',{evidence:{missing}})};
   const authorization=await authorizeFinalPublishGuard();
   if(!authorization.ok)return {...before,blocker:typedBlocker('ACTION_FAILED',authorization.reason,{evidence:authorization})};

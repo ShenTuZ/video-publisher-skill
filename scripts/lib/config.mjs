@@ -58,6 +58,7 @@ export function defaultConfig() {
       checkConcurrency: 4,
       uploadConcurrency: 4,
       autoPublishOnReady: false,
+      publishProfile: "fast",
     },
     cover: {
       uploadExistingByDefault: false,
@@ -112,6 +113,7 @@ export function normalizeConfig(raw = {}) {
       checkConcurrency: Number(raw.execution?.checkConcurrency ?? fallback.execution.checkConcurrency),
       uploadConcurrency: Number(raw.execution?.uploadConcurrency ?? fallback.execution.uploadConcurrency),
       autoPublishOnReady: raw.execution?.autoPublishOnReady === true,
+      publishProfile: String(raw.execution?.publishProfile || fallback.execution.publishProfile).trim(),
     },
     cover: {
       uploadExistingByDefault: raw.cover?.uploadExistingByDefault === true,
@@ -154,6 +156,9 @@ export function validateConfig(config) {
   for (const key of ["checkConcurrency", "uploadConcurrency"]) {
     const value = config.execution[key];
     if (!Number.isInteger(value) || value < 1) errors.push(`execution.${key} must be a positive integer`);
+  }
+  if (!["fast", "strict"].includes(config.execution.publishProfile)) {
+    errors.push("execution.publishProfile must be fast or strict");
   }
   return errors;
 }

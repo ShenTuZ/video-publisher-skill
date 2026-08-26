@@ -46,6 +46,7 @@ function parseArgs(argv) {
     uploadConcurrency: config.execution.uploadConcurrency,
     autoPublishOnReady: config.execution.autoPublishOnReady === true,
     explicitPublishOnReady: false,
+    publishProfile: config.execution.publishProfile,
   };
   const positional = [];
   for (let index = 0; index < argv.length; index += 1) {
@@ -54,6 +55,8 @@ function parseArgs(argv) {
     if (arg === "--confirm-original-rights") { options.originalRightsConfirmed = true; continue; }
     if (arg === "--publish-on-ready") { options.autoPublishOnReady = true; options.explicitPublishOnReady = true; continue; }
     if (arg === "--stop-at-ready") { options.autoPublishOnReady = false; continue; }
+    if (arg === "--fast") { options.publishProfile = "fast"; continue; }
+    if (arg === "--strict") { options.publishProfile = "strict"; continue; }
     const setters = {
       "--state-root": value => { options.stateRoot = path.resolve(value); },
       "--job-id": value => { options.jobId = value; },
@@ -68,7 +71,7 @@ function parseArgs(argv) {
     if (arg.startsWith("--")) throw new UsageError(`Unknown option: ${arg}`);
     positional.push(arg);
   }
-  if (!positional.length) throw new UsageError("Usage: publisher.mjs <package.json> [task-suffix] [platform...] [--inspect-only|--confirm-original-rights|--publish-on-ready|--stop-at-ready]");
+  if (!positional.length) throw new UsageError("Usage: publisher.mjs <package.json> [task-suffix] [platform...] [--fast|--strict|--inspect-only|--confirm-original-rights|--publish-on-ready|--stop-at-ready]");
   const packagePath = path.resolve(positional.shift());
   let taskSuffix = "manual";
   if (positional.length && !PLATFORMS.includes(positional[0])) taskSuffix = positional.shift();
@@ -215,6 +218,7 @@ async function main() {
         VIDEO_PUBLISHER_V2_CHECKPOINT_PATH: store.receiptCheckpointPath(platform),
         VIDEO_PUBLISHER_V2_FINGERPRINT: state.fingerprint,
         VIDEO_PUBLISHER_V2_TASK_NAME: item.taskSpaceName || "",
+        VIDEO_PUBLISHER_V2_PUBLISH_PROFILE: args.publishProfile,
       },
     });
     const observation = parseV2Result(`${execution.stdout}\n${execution.stderr}`);
@@ -359,13 +363,17 @@ async function main() {
   await ui.idle();
   await publishReadyPlatforms();
 
-  console.error(`[video-publisher-v2] final verify parallel=${args.checkConcurrency}`);
-  await runPool(activePlatforms().filter(platform => state.platforms[platform].status !== "blocked_user"), args.checkConcurrency, platform => invoke(platform, "verify"));
-  await publishReadyPlatforms();
+  if (args.publishProfile === "strict" || inputChannelBroken) {
+    console.error(`[video-publisher-v2] final verify parallel=${args.checkConcurrency}`);
+    await runPool(activePlatforms().filter(platform => state.platforms[platform].status !== "blocked_user"), args.checkConcurrency, platform => invoke(platform, "verify"));
+    await publishReadyPlatforms();
+  } else {
+    console.error("[video-publisher-v2] fast profile: skip redundant final full-page verification");
+  }
 
   // One targeted retry is allowed only for an idempotent mutation whose fresh verifier
   // returned STATE_AMBIGUOUS. Typed action/auth/risk-control failures are never looped.
-  const retryTargets = (inputChannelBroken ? [] : activePlatforms()).filter(platform => {
+  const retryTargets = (args.publishProfile === "strict" && !inputChannelBroken ? activePlatforms() : []).filter(platform => {
     const verdict = state.platforms[platform].verdict;
     return state.platforms[platform].status === "needs_mutation" && verdict?.blocker?.code === BLOCKER.STATE_AMBIGUOUS;
   });

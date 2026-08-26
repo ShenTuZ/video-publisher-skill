@@ -262,6 +262,7 @@ async function emitObservation(observation) {
     taskSpaceRecovery,
     observedAt: new Date().toISOString(),
     finalPublishClicked: false,
+    publishProfile,
     ...observation,
   };
   // Safety is injected centrally and backed by a page-level capture guard.

@@ -30,12 +30,18 @@ const REQUIRED_GATES = Object.freeze({
   ],
 });
 
+const FAST_REQUIRED_GATES = Object.freeze({
+  xiaohongshu: ["authenticated", "draftIdentity", "video", "title", "description", "tags", "original", "contentType", "noBlockingDialog", "finalButton", "safety"],
+  douyin: ["authenticated", "draftIdentity", "video", "title", "description", "tags", "aiLabel", "noBlockingDialog", "finalButton", "safety"],
+  wechat_channels: ["authenticated", "draftIdentity", "video", "description", "shortTitle", "aiLabel", "productLink", "original", "noBlockingDialog", "finalButton", "safety"],
+});
+
 export function gate(ok, evidence = {}, extra = {}) {
   return { ok: ok === true, evidence, ...extra };
 }
 
-export function requiredGates(platform) {
-  const gates = REQUIRED_GATES[platform];
+export function requiredGates(platform, profile = "strict") {
+  const gates = profile === "fast" ? FAST_REQUIRED_GATES[platform] : REQUIRED_GATES[platform];
   if (!gates) throw new Error(`Unsupported platform: ${platform}`);
   return [...gates];
 }
@@ -78,7 +84,7 @@ export function evaluateObservation(observation) {
   if (!observation || !PLATFORMS.includes(observation.platform)) {
     throw new Error("Invalid platform observation");
   }
-  const required = requiredGates(observation.platform);
+  const required = requiredGates(observation.platform, observation.publishProfile || "strict");
   const gates = { ...(observation.gates || {}) };
   const safetyEvidence = gates.safety?.evidence || {};
   const safetyVerified = gates.safety?.ok === true
