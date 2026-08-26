@@ -23,6 +23,7 @@ const DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.join(os.homedir(), ".video-publisher", "v2-jobs");
 const FAST_OVERLAP_PLATFORMS = new Set(["xiaohongshu", "douyin", "wechat_channels"]);
 const AUTO_PUBLISH_PLATFORMS = new Set(["xiaohongshu", "douyin", "wechat_channels"]);
+const HEALTH_CHECK_CONCURRENCY = 1;
 const validators = { xiaohongshu: validateXiaohongshuPackage, douyin: validateDouyinPackage, wechat_channels: validateWechatChannelsPackage };
 
 class UsageError extends Error {}
@@ -285,14 +286,14 @@ async function main() {
     && new Set(["xiaohongshu", "wechat_channels"]).has(activePlatforms()[0]);
 
   // Two fresh read-only passes prove that the shared Ego channel can select every
-  // platform page before any upload input is touched. The second pass deliberately
-  // uses the same persisted task spaces, so an unstable browser is caught before
-  // it can create a partial upload job.
-  console.error(`[video-publisher-v2] browser health inspect 1/2 parallel=${args.checkConcurrency}`);
-  await runPool(activePlatforms(), args.checkConcurrency, platform => invoke(platform, "inspect"));
+  // platform page before any upload input is touched. Health checks are deliberately
+  // single-channel: Ego's runtime transport is process-wide, so concurrent page
+  // probes can turn a short-lived RPC stall into a whole-job channel failure.
+  console.error(`[video-publisher-v2] browser health inspect 1/2 serial=${HEALTH_CHECK_CONCURRENCY}`);
+  await runPool(activePlatforms(), HEALTH_CHECK_CONCURRENCY, platform => invoke(platform, "inspect"));
   if (!inputChannelBroken) {
-    console.error(`[video-publisher-v2] browser health inspect 2/2 parallel=${args.checkConcurrency}`);
-    await runPool(activePlatforms(), args.checkConcurrency, platform => invoke(platform, "inspect"));
+    console.error(`[video-publisher-v2] browser health inspect 2/2 serial=${HEALTH_CHECK_CONCURRENCY}`);
+    await runPool(activePlatforms(), HEALTH_CHECK_CONCURRENCY, platform => invoke(platform, "inspect"));
   }
   if (!inputChannelBroken && !persistentSingleFastPlatform) await publishReadyPlatforms();
   if (args.inspectOnly) {

@@ -75,8 +75,14 @@ async function selectPlatformTab() {
   }
   const readyStartedAt=Date.now();
   let info=null;
+  let pageInfoErrors=0;
+  let lastPageInfoError='';
   for(let attempt=0;attempt<21;attempt+=1){
-    info=await pageInfo();
+    try{info=await pageInfo();pageInfoErrors=0;lastPageInfoError=''}catch(error){
+      info=null;pageInfoErrors+=1;lastPageInfoError=String(error?.message||error);
+      if(pageInfoErrors>=3)break;
+      await wait(.2);continue;
+    }
     if(info?.dialog)break;
     const viewportReady=info&&info.w>=300&&info.h>=300&&PLATFORM_HOSTS[platform].test(String(info.url||''));
     let shellReady=false;
@@ -88,7 +94,7 @@ async function selectPlatformTab() {
     return { ok: false, blocker: typedBlocker('STATE_AMBIGUOUS', `浏览器原生弹窗阻塞页面: ${info.dialog.message || 'unknown dialog'}`, { retryable: true, evidence: info.dialog }) };
   }
   if (!info || info.w < 300 || info.h < 300) {
-    return { ok: false, blocker: typedBlocker('INPUT_CHANNEL_BROKEN', 'Ego Lite 页面视口不可用', { retryable: true, evidence: info }) };
+    return { ok: false, blocker: typedBlocker('INPUT_CHANNEL_BROKEN', 'Ego Lite 页面视口不可用', { retryable: true, evidence: { info, pageInfoErrors, lastPageInfoError } }) };
   }
   return { ok: true, info, readyWaitMs:Date.now()-readyStartedAt, reused:Boolean(match) };
 }

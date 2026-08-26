@@ -44,7 +44,7 @@ The publisher acquires a state-root publisher lock and an atomic job-directory l
 Schedule by resource type:
 
 ```text
-browser health inspect: two consecutive parallel read-only passes, default 4
+browser health inspect: two consecutive serial read-only passes, one shared Ego channel
 file injection and upload-start proof: serial start in fast mode, then concurrent browser uploads
 metadata and settings while browser uploads continue: serial, exactly 1
 upload completion wait: parallel, read-only
@@ -52,7 +52,7 @@ post-upload repair, declarations, and covers: serial, exactly 1
 final verification: parallel, default 4
 ```
 
-Before an upload input is touched, every selected platform must pass two fresh read-only health inspections in its persisted task space. Fast adapters then split upload into `inject` and `wait_upload`. Fast mode starts injections serially because Ego's input channel is shared, but each browser upload continues in the background while one serial UI controller fills metadata; completion waiters remain parallel and read-only. Never run two input controllers at once or reinject an active upload. If any runner returns `INPUT_CHANNEL_BROKEN`, wait for siblings, skip remaining mutation, and run only final read-only verification. `run-fast-platforms.sh` automatically retries the same persisted job after 5 seconds and 10 seconds, only for that typed blocker; after two failed recoveries it stops without publishing an unverified platform.
+Before an upload input is touched, every selected platform must pass two fresh serial health inspections in its persisted task space. This avoids concurrent Ego runtime probes; each page-status RPC also receives up to three bounded short retries before the channel is treated as broken. Fast adapters then split upload into `inject` and `wait_upload`. Fast mode starts injections serially because Ego's input channel is shared, but each browser upload continues in the background while one serial UI controller fills metadata; completion waiters remain parallel and read-only. Never run two input controllers at once or reinject an active upload. If any runner returns `INPUT_CHANNEL_BROKEN`, wait for siblings, skip remaining mutation, and run only final read-only verification. `run-fast-platforms.sh` automatically retries the same persisted job after 5 seconds and 10 seconds, only for that typed blocker; after two failed recoveries it stops without publishing an unverified platform.
 
 When Xiaohongshu or WeChat Channels is the only selected platform, use its persistent `prepare` runner. One Ego process inspects, injects, prefills while upload continues, waits, and repairs the draft; a separate read-only `verify` runner must still re-read every gate. Multi-platform jobs retain the split phase scheduler so one platform never blocks the others.
 

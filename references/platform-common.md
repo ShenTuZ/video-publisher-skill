@@ -17,7 +17,7 @@ If Ego reports that the user controls a task space, stop the whole browser job. 
 Use `scripts/run-fast-platforms.sh`, which invokes `scripts/v2/publisher.mjs`.
 
 ```text
-1. inspect every selected platform twice in parallel before any upload input is touched
+1. inspect every selected platform twice through one serial shared-browser channel before any upload input is touched
 2. start supported uploads serially in fast mode, then exit each injection runner after upload-start proof
 3. prefill metadata through one serial UI controller while browser uploads continue
 4. wait for upload completion in parallel through read-only runners

@@ -76,7 +76,7 @@ test("publisher waits for every upload process before serial UI mutation", async
   assert.equal(summary.scheduler.uiConcurrency,1);
 });
 
-test("publisher performs two healthy inspections before the first upload injection", async () => {
+test("publisher serializes two health inspections before the first upload injection", async () => {
   const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-health-check-test-"));
   const log=path.join(root,"events.ndjson");
   const videoPath=path.join(root,"sample-video.mp4");
@@ -87,9 +87,13 @@ test("publisher performs two healthy inspections before the first upload injecti
   await fs.promises.writeFile(packagePath,JSON.stringify({videoPath,title:"Health check",xhsTopics:["Test"],douyinTopics:["Test"],cover:{uploadCustomCover:false}}));
   const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"health-check","xiaohongshu","douyin","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
   assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
+  const publisherSource=await fs.promises.readFile(path.join(V2_DIR,"publisher.mjs"),"utf8");
+  assert.match(publisherSource,/const HEALTH_CHECK_CONCURRENCY = 1/);
   const events=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line));
   const inspections=events.filter(item=>item.phase==="inspect"&&item.event==="start");
   assert.equal(inspections.length,4,"every selected platform must pass two read-only health inspections");
+  const healthEvents=events.filter(item=>item.phase==="inspect").map(item=>`${item.event}:${item.platform}`);
+  assert.deepEqual(healthEvents,["start:xiaohongshu","end:xiaohongshu","start:douyin","end:douyin","start:xiaohongshu","end:xiaohongshu","start:douyin","end:douyin"]);
   const lastInspectEnd=Math.max(...events.filter(item=>item.phase==="inspect"&&item.event==="end").map(item=>item.at));
   const firstInjectStart=Math.min(...events.filter(item=>item.phase==="inject"&&item.event==="start").map(item=>item.at));
   assert.ok(lastInspectEnd<=firstInjectStart,{lastInspectEnd,firstInjectStart});

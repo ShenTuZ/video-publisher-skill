@@ -89,6 +89,9 @@ test("Ego task-space selection rejects a recycled id with another name", () => {
   const tabSelection = source.slice(source.indexOf("async function selectPlatformTab"), source.indexOf("async function armFinalPublishGuard"));
   assert.match(tabSelection, /attempt<21/);
   assert.match(tabSelection, /await wait\(\.15\)/);
+  assert.match(tabSelection, /let pageInfoErrors=0/);
+  assert.match(tabSelection, /pageInfoErrors>=3/);
+  assert.match(tabSelection, /await wait\(\.2\)/);
   assert.doesNotMatch(tabSelection, /await wait\(1\.5\)/);
 });
 
