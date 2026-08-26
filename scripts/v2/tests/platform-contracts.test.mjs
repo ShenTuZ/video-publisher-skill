@@ -37,6 +37,11 @@ test("Xiaohongshu topics start through the native editor command", () => {
   assert.match(source, /async function ensureXhsPrefillResponsive\(/);
   assert.match(source, /responsiveBeforeTitle/);
   assert.match(source, /responsiveBeforeContent/);
+  const responsiveStart=source.indexOf("async function ensureXhsPrefillResponsive");
+  const responsiveEnd=source.indexOf("async function prefillXiaohongshu",responsiveStart);
+  const responsive=source.slice(responsiveStart,responsiveEnd);
+  assert.match(responsive,/Page\.setWebLifecycleState/);
+  assert.doesNotMatch(responsive,/document\.visibilityState==='visible'&&document\.hasFocus\(\)/);
   assert.match(source, /笔记含AI合成内容/);
   assert.match(source, /accept_terms/);
   assert.match(source, /original confirmation dialog did not close/);
