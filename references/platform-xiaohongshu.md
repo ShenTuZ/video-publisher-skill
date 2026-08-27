@@ -72,6 +72,8 @@ Default `xhsPublish.mode` to `immediate` and keep the `定时发布` switch off.
 
 The bottom final control is exposed reliably through Ego's semantic tree, not ordinary page DOM; the left navigation also says `发布笔记` and must never satisfy the final-button gate. Match only the semantic bottom button `发布` or `定时发布`. After every pre-publish gate independently reaches READY and automatic publishing is authorized, click that semantic control and require the success-page URL or the exact visible signal `发布成功`.
 
+If the first authorized semantic click leaves the editor unchanged for six seconds, with no success signal, error, or publish-confirmation dialog, take one fresh semantic snapshot and retry that exact bottom control once. Do not retry after any dialog, navigation, error, or success signal, and retain the retry fact in the publish receipt.
+
 ## Custom Cover
 
 Default to the platform cover unless the package explicitly enables an existing-cover upload. Use the user-provided `3:4` asset.

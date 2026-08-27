@@ -47,6 +47,10 @@ test("Xiaohongshu topics start through the native editor command", () => {
   assert.match(source, /original confirmation dialog did not close/);
   assert.match(source, /permission-card-select/);
   assert.match(source, /semanticFinalMatch/);
+  assert.match(source, /semanticRetry=false/, "Xiaohongshu publish must keep one bounded no-effect retry");
+  assert.match(source, /attempt===11/, "the retry must wait for observable no-effect evidence");
+  assert.match(source, /probe\.dialogs\.length===0/, "the retry must never race a confirmation dialog");
+  assert.match(source, /retry unresponsive Xiaohongshu publish/, "the retry must use a fresh semantic final-button reference");
   assert.match(source, /phase === 'publish'/);
   assert.match(source, /phase === 'inject'/);
   assert.match(source, /phase === 'prefill'/);
