@@ -105,4 +105,4 @@ references/                  平台、配置与恢复说明
 
 ## 版本与许可证
 
-版本记录见 [CHANGELOG.md](CHANGELOG.md)。当前仓库尚未声明开源许可证：在仓库所有者明确选择许可证前，请勿复制、修改或重新分发代码。
+版本记录见 [CHANGELOG.md](CHANGELOG.md)。本项目采用 [MIT License](LICENSE)：允许使用、复制、修改和分发，但必须保留版权与许可证声明；软件按“现状”提供，不附带担保。
