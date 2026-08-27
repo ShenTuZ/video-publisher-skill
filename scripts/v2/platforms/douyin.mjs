@@ -228,12 +228,16 @@ async function ensureDouyinSchedule() {
   if(douyinPublish.mode==='immediate')return await ensureDouyinChoice('立即发布','schedule');
   const before=await inspectDouyin();
   if(before.gates.schedule.ok)return {ok:true,already:true};
-  const target=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const label=[...document.querySelectorAll('label')].find(el=>compact(el.innerText||el.textContent||'')==='定时发布');if(!label)return {ok:false,reason:'douyin scheduled publish choice missing'};label.id='vp2-douyin-scheduled';return {ok:true}})()`);
+  const target=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const label=[...document.querySelectorAll('label')].find(el=>compact(el.innerText||el.textContent||'')==='定时发布');const input=label?.querySelector('input');if(!label||!input)return {ok:false,reason:'douyin scheduled publish choice missing'};return {ok:true,selected:label.getAttribute('data-checked')==='true',inputId:(input.id='vp2-douyin-scheduled-input')}})()`);
   if(!target.ok)return target;
-  await click('#vp2-douyin-scheduled',{label:'select Douyin scheduled'}).catch(()=>{});await wait(.4);
-  const input=await js(String.raw`(() => {const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden'};const item=[...document.querySelectorAll('input')].find(el=>visible(el)&&/日期|时间|date|time/i.test((el.placeholder||'')+' '+(el.className||'')));if(!item)return {ok:false,reason:'douyin schedule input did not appear after selecting scheduled publish'};item.id='vp2-douyin-schedule-input';item.focus();item.select();return {ok:true}})()`);
+  if(!target.selected){const switched=await js(String.raw`(() => {const input=document.querySelector('#vp2-douyin-scheduled-input');const label=input?.closest('label');if(!input||!label)return {ok:false,reason:'douyin scheduled checkbox disappeared'};input.click();return {ok:input.checked===true&&label.getAttribute('data-checked')==='true'}})()`);if(!switched.ok)return {ok:false,reason:'douyin scheduled checkbox did not switch'};}
+  let input={ok:false,reason:'douyin schedule input did not appear after selecting scheduled publish'};
+  for(let attempt=0;attempt<10;attempt+=1){input=await js(String.raw`(() => {const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden'};const item=[...document.querySelectorAll('input')].find(el=>visible(el)&&(el.getAttribute('format')==='yyyy-MM-dd HH:mm'||(el.placeholder||'').includes('日期和时间')));if(!item)return {ok:false};item.id='vp2-douyin-schedule-time';item.focus();item.select();return {ok:item.selectionStart===0&&item.selectionEnd===item.value.length,value:item.value}})()`);if(input.ok)break;await wait(.2)}
   if(!input.ok)return input;
-  await typeText(douyinPublish.publishAt);await pressKey('Enter').catch(()=>{});await wait(.5);
+  await pressKey('Backspace').catch(()=>{});await wait(.15);await typeText(douyinPublish.publishAt);await pressKey('Enter').catch(()=>{});await wait(.25);
+  const commit=await js(String.raw`(() => {const compact=v=>String(v||'').replace(/\s+/g,' ').trim();const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>8&&r.height>8&&s.display!=='none'&&s.visibility!=='hidden'};const heading=[...document.querySelectorAll('div,span,p')].filter(visible).filter(el=>compact(el.innerText||el.textContent||'')==='发布时间').sort((a,b)=>{const ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();return ar.width*ar.height-br.width*br.height})[0];if(!heading)return {ok:false,reason:'douyin schedule commit heading missing'};const r=heading.getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2}})()`);
+  if(!commit.ok)return commit;
+  await click([commit.x,commit.y],{label:'commit Douyin scheduled time'});await wait(.5);
   const after=await inspectDouyin();
   return after.gates.schedule.ok?{ok:true,changed:true}:{ok:false,reason:'douyin scheduled time did not persist',evidence:after.gates.schedule.evidence};
 }
