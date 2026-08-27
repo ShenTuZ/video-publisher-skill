@@ -18,7 +18,7 @@ Use `scripts/run-fast-platforms.sh`, which invokes `scripts/v2/publisher.mjs`.
 
 ```text
 1. inspect every selected platform twice through one serial shared-browser channel before any upload input is touched
-2. start supported uploads serially in fast mode, then exit each injection runner after upload-start proof
+2. start supported uploads serially in fast mode, with Douyin first when selected, then exit each injection runner after upload-start proof
 3. prefill metadata through one serial UI controller while browser uploads continue, with Douyin first; when authorized, submit a fully verified active Douyin upload before continuing sibling forms
 4. wait for upload completion in parallel through read-only runners
 5. mutate remaining metadata, entities, declarations, settings, and covers serially

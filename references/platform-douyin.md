@@ -50,7 +50,7 @@ For scheduled publishing, the current page exposes `定时发布` as a styled la
 
 ## Early Upload Submission
 
-Douyin may accept an authorized final submit while its own target video is still uploading. The multi-platform runner fills Douyin first and uses this exception only when page evidence shows active upload, no upload failure, exact title/body/topic entities, the requested AI declaration, exact publish timing, no blocking dialog, and an enabled final button. The final phase still requires confirmed platform success/submission evidence; a click without confirmation remains blocked. Do not apply this exception to Xiaohongshu or WeChat Channels.
+Douyin may accept an authorized final submit while its own target video is still uploading. The multi-platform runner starts its active upload first when Douyin is selected, then fills it first and uses this exception only when page evidence shows active upload, no upload failure, exact title/body/topic entities, the requested AI declaration, exact publish timing, no blocking dialog, and an enabled final button. The final phase still requires confirmed platform success/submission evidence; a click without confirmation remains blocked. Do not apply this exception to Xiaohongshu or WeChat Channels.
 
 Unless a package explicitly requests a scheduled time, keep the platform cover, leave official activities, collection, autonomous declaration, chapters, location, and hot topics unset, and verify `公开`, `允许`, and `立即发布`. The adapter may prefill title, prose, topic entities, and these normal controls while the upload continues. A scheduled package uses `douyinPublish: { "mode": "scheduled", "publishAt": "YYYY-MM-DD HH:mm" }`; do not infer a time from the video.
 

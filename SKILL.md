@@ -52,7 +52,7 @@ post-upload repair, declarations, and covers: serial, exactly 1
 final verification: parallel, default 4
 ```
 
-Douyin is the only early-submit exception: fill it first. When its upload is visibly active and all non-video gates, including exact publish timing, are verified, the separately authorized publish phase may submit it immediately. The platform must return explicit success/submission evidence; otherwise it remains blocked. Xiaohongshu and WeChat Channels keep the ordinary upload-complete-before-submit path.
+Douyin is the only early-submit exception: when selected, start its upload first and fill it first. When its upload is visibly active and all non-video gates, including exact publish timing, are verified, the separately authorized publish phase may submit it immediately. The platform must return explicit success/submission evidence; otherwise it remains blocked. Xiaohongshu and WeChat Channels keep the ordinary upload-complete-before-submit path.
 
 Before an upload input is touched, every selected platform must pass two fresh serial health inspections in its persisted task space. This avoids concurrent Ego runtime probes; each page-status RPC also receives up to three bounded short retries before the channel is treated as broken. Short interactive phases have an owned-process watchdog, while upload-wait phases retain a long bounded limit. Xiaohongshu activates page lifecycle before writing title or topic entities during upload, then requires visible responsive controls without treating an isolated-page focus flag as a failure. Fast adapters then split upload into `inject` and `wait_upload`. Fast mode starts injections serially because Ego's input channel is shared, but each browser upload continues in the background while one serial UI controller fills metadata; completion waiters remain parallel and read-only. Never run two input controllers at once or reinject an active upload. If any runner returns `INPUT_CHANNEL_BROKEN`, wait for siblings, skip remaining mutation, and run only final read-only verification. `run-fast-platforms.sh` automatically retries the same persisted job after 5 seconds, 10 seconds, and a final 30-second cooldown, only for that typed blocker; after those automatic recoveries it stops without publishing an unverified platform.
 
@@ -165,7 +165,7 @@ Generate a meaningful WeChat short-title summary of at most 10 Unicode character
 4. Validate supplied cover assets and every platform package.
 5. Resolve title, descriptions, short title, and real topics from the source context without requesting approval when no material choice is unresolved.
 6. Run two fresh browser-health inspections before any upload injection.
-7. For Xiaohongshu-only or WeChat-only work, run one persistent prepare session; otherwise serially start missing uploads and prove each fast upload has started.
+7. For Xiaohongshu-only or WeChat-only work, run one persistent prepare session; otherwise serially start missing uploads with Douyin first when selected, and prove each fast upload has started.
 8. While browser uploads continue, fill metadata through one serial UI controller.
 9. Wait for upload completion in parallel without further input, then repair remaining post-upload fields and covers.
 10. In fast mode, publish each READY platform immediately; run a full independent verification only under `--strict`.

@@ -24,7 +24,7 @@ const DEFAULT_ROOT = path.join(os.homedir(), ".video-publisher", "v2-jobs");
 const FAST_OVERLAP_PLATFORMS = new Set(["xiaohongshu", "douyin", "wechat_channels"]);
 const AUTO_PUBLISH_PLATFORMS = new Set(["xiaohongshu", "douyin", "wechat_channels"]);
 const HEALTH_CHECK_CONCURRENCY = 1;
-const PREFILL_PLATFORM_ORDER = ["douyin", "xiaohongshu", "wechat_channels"];
+const FAST_PLATFORM_ORDER = ["douyin", "xiaohongshu", "wechat_channels"];
 const validators = { xiaohongshu: validateXiaohongshuPackage, douyin: validateDouyinPackage, wechat_channels: validateWechatChannelsPackage };
 
 class UsageError extends Error {}
@@ -34,6 +34,10 @@ function positive(raw, name) {
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1) throw new UsageError(`${name} must be a positive integer`);
   return value;
+}
+
+function prioritizeFastPlatforms(platforms) {
+  return [...platforms].sort((left, right) => FAST_PLATFORM_ORDER.indexOf(left) - FAST_PLATFORM_ORDER.indexOf(right));
 }
 
 function parseArgs(argv) {
@@ -335,13 +339,12 @@ async function main() {
     return;
   }
 
-  const injectTargets = inputChannelBroken ? [] : activePlatforms().filter(platform => FAST_OVERLAP_PLATFORMS.has(platform) && state.platforms[platform].status === "needs_upload");
+  const injectTargets = inputChannelBroken ? [] : prioritizeFastPlatforms(activePlatforms().filter(platform => FAST_OVERLAP_PLATFORMS.has(platform) && state.platforms[platform].status === "needs_upload"));
   const injectConcurrency = args.publishProfile === "fast" ? 1 : args.uploadConcurrency;
   console.error(`[video-publisher-v2] fast inject parallel=${injectConcurrency}: ${injectTargets.join(",") || "none"}`);
   await runPool(injectTargets, injectConcurrency, platform => invoke(platform, "inject"));
 
-  const overlapPrefillTargets = inputChannelBroken ? [] : injectTargets.filter(platform => state.platforms[platform].status === "needs_upload")
-    .sort((left, right) => PREFILL_PLATFORM_ORDER.indexOf(left) - PREFILL_PLATFORM_ORDER.indexOf(right));
+  const overlapPrefillTargets = inputChannelBroken ? [] : prioritizeFastPlatforms(injectTargets.filter(platform => state.platforms[platform].status === "needs_upload"));
   console.error(`[video-publisher-v2] overlap prefill UI serial: ${overlapPrefillTargets.join(",") || "none"}${inputChannelBroken ? " (input channel broken)" : ""}`);
   for (const platform of overlapPrefillTargets) {
     if (inputChannelBroken) break;

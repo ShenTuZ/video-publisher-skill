@@ -112,6 +112,8 @@ test("Douyin is prefilled and submitted before sibling uploads complete", async 
   assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
   const events=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line));
   const starts=events.filter(item=>item.event==="start");
+  const injectOrder=starts.filter(item=>item.phase==="inject").map(item=>item.platform);
+  assert.deepEqual(injectOrder,["douyin","xiaohongshu","wechat_channels"],"Douyin must receive the shared upload input first");
   const prefillOrder=starts.filter(item=>item.phase==="prefill").map(item=>item.platform);
   assert.deepEqual(prefillOrder,["douyin","xiaohongshu","wechat_channels"]);
   const douyinPrefillEnd=events.find(item=>item.event==="end"&&item.platform==="douyin"&&item.phase==="prefill").at;
