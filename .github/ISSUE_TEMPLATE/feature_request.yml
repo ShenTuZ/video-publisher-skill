@@ -1,0 +1,25 @@
+name: Feature request
+description: Propose a bounded, verifiable Skill improvement.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Name the platform, trigger condition, target control, and observable success condition.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety and recovery considerations
+      description: Explain how the proposal avoids accidental publishing, duplicate upload, and account-specific assumptions.
+    validations:
+      required: true

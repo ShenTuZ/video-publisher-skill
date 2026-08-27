@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible Skill or platform-adapter problem.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Xiaohongshu
+        - Douyin
+        - WeChat Channels
+        - Scheduler or installation
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options:
+        - onboarding
+        - inspect
+        - inject or upload
+        - prefill
+        - verify or READY
+        - publish
+        - recovery
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and redacted evidence
+      description: Never include credentials, cookies, QR codes, private video, or account data.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Reproduction context
+      description: Include Skill version, OS, whether the video was uploading, and requested AI/original/schedule/product settings.
+    validations:
+      required: true
