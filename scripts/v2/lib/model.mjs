@@ -31,9 +31,12 @@ const REQUIRED_GATES = Object.freeze({
 });
 
 const FAST_REQUIRED_GATES = Object.freeze({
-  xiaohongshu: ["authenticated", "draftIdentity", "video", "title", "description", "tags", "original", "contentType", "noBlockingDialog", "finalButton", "safety"],
-  douyin: ["authenticated", "draftIdentity", "video", "title", "description", "tags", "aiLabel", "noBlockingDialog", "finalButton", "safety"],
-  wechat_channels: ["authenticated", "draftIdentity", "video", "description", "shortTitle", "aiLabel", "productLink", "original", "noBlockingDialog", "finalButton", "safety"],
+  // Publish timing is a per-video instruction, not an untouched platform default.
+  // Fast runs may omit static default-item gates, but must always prove the exact
+  // immediate/scheduled state (and the requested timestamp when scheduled).
+  xiaohongshu: ["authenticated", "draftIdentity", "video", "title", "description", "tags", "original", "contentType", "schedule", "noBlockingDialog", "finalButton", "safety"],
+  douyin: ["authenticated", "draftIdentity", "video", "title", "description", "tags", "aiLabel", "schedule", "noBlockingDialog", "finalButton", "safety"],
+  wechat_channels: ["authenticated", "draftIdentity", "video", "description", "shortTitle", "schedule", "aiLabel", "productLink", "original", "noBlockingDialog", "finalButton", "safety"],
 });
 
 export function gate(ok, evidence = {}, extra = {}) {

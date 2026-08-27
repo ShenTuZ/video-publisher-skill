@@ -8,6 +8,7 @@ import {
   readPackage,
   sanitizeShortTitle,
   shortTitleLength,
+  validatePublishTiming,
   WECHAT_SHORT_TITLE_PLATFORM_MAX,
   WECHAT_SHORT_TITLE_TARGET,
   validateDouyinPackage,
@@ -92,6 +93,13 @@ test("Douyin defaults to immediate publish and validates scheduled timestamps", 
     pkg = readPackage(packagePath, { config: defaultConfig() });
     assert.match(validateDouyinPackage(pkg).join("; "), /YYYY-MM-DD HH:mm/);
   });
+});
+
+test("scheduled publication must name a real future local datetime", () => {
+  const now = new Date(2026, 7, 27, 12, 0, 0, 0);
+  assert.deepEqual(validatePublishTiming({ mode: 'scheduled', publishAt: '2026-08-27 12:01' }, 'publish', { now }), []);
+  assert.match(validatePublishTiming({ mode: 'scheduled', publishAt: '2026-08-27 12:00' }, 'publish', { now }).join('; '), /future/);
+  assert.match(validatePublishTiming({ mode: 'scheduled', publishAt: '2026-02-30 12:00' }, 'publish', { now }).join('; '), /real YYYY-MM-DD HH:mm/);
 });
 
 test("an existing cover asset needs only its file path and ratio", async () => {
@@ -191,14 +199,14 @@ test("WeChat per-video controls are explicit and scheduled time uses a stable fo
       wechatDescription: "AI workflow\n\n#AI",
       wechatShortTitle: "AI workflow",
       wechatTags: ["AI"],
-      wechatPublish: { mode: "scheduled", publishAt: "2026-08-27 13:00" },
+      wechatPublish: { mode: "scheduled", publishAt: "2099-08-27 13:00" },
       wechatLink: { type: "product", query: "SKU-123", expectedName: "Example product" },
       wechatAiGenerated: true,
     }));
     const pkg = readPackage(packagePath, { config: defaultConfig() });
     assert.deepEqual(validateWechatChannelsPackage(pkg), []);
     assert.equal(pkg.wechatAiGenerated, true);
-    assert.deepEqual(pkg.wechatPublish, { mode: "scheduled", publishAt: "2026-08-27 13:00" });
+    assert.deepEqual(pkg.wechatPublish, { mode: "scheduled", publishAt: "2099-08-27 13:00" });
     assert.deepEqual(pkg.wechatLink, { type: "product", selection: "search", query: "SKU-123", expectedName: "Example product" });
   });
 });

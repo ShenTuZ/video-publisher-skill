@@ -28,6 +28,27 @@ export function normalizeDescription(value) {
 export const WECHAT_SHORT_TITLE_PLATFORM_MAX = 16;
 export const WECHAT_SHORT_TITLE_TARGET = 10;
 
+export function parseLocalPublishAt(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(String(value || "").trim());
+  if (!match) return null;
+  const [, yearRaw, monthRaw, dayRaw, hourRaw, minuteRaw] = match;
+  const year = Number(yearRaw), month = Number(monthRaw), day = Number(dayRaw), hour = Number(hourRaw), minute = Number(minuteRaw);
+  if (month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59) return null;
+  const parsed = new Date(year, month - 1, day, hour, minute, 0, 0);
+  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day || parsed.getHours() !== hour || parsed.getMinutes() !== minute) return null;
+  return parsed;
+}
+
+export function validatePublishTiming(publish, field, { now = new Date() } = {}) {
+  const timing = publish || {};
+  if (!['immediate', 'scheduled'].includes(timing.mode)) return [`${field}.mode must be immediate or scheduled`];
+  if (timing.mode !== 'scheduled') return [];
+  const at = parseLocalPublishAt(timing.publishAt);
+  if (!at) return [`${field}.publishAt must use a real YYYY-MM-DD HH:mm local datetime when scheduled`];
+  if (at.getTime() <= now.getTime()) return [`${field}.publishAt must be in the future when scheduled`];
+  return [];
+}
+
 export function shortTitleLength(value) {
   return Array.from(String(value || "")).length;
 }
@@ -252,10 +273,7 @@ export function validateDouyinPackage(pkg) {
   }
   if (!pkg.douyinTopics.length) errors.push("douyinTopics are required");
   if (pkg.douyinTopics.length > 5) errors.push("douyin supports at most 5 topics");
-  if (!["immediate", "scheduled"].includes(pkg.douyinPublish?.mode)) errors.push("douyinPublish.mode must be immediate or scheduled");
-  if (pkg.douyinPublish?.mode === "scheduled" && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(pkg.douyinPublish.publishAt || "")) {
-    errors.push("douyinPublish.publishAt must use YYYY-MM-DD HH:mm when scheduled");
-  }
+  errors.push(...validatePublishTiming(pkg.douyinPublish, 'douyinPublish'));
   return errors;
 }
 
@@ -267,10 +285,7 @@ export function validateXiaohongshuPackage(pkg) {
   if (!pkg.xhsTopics.length) errors.push("xhsTopics are required");
   if (pkg.xhsTopics.length > 5) errors.push("xiaohongshu supports at most 5 topics");
   if ((pkg.xhsDescription.match(/#[^\s#]+/g) || []).length) errors.push("xhsDescription must not contain inline hashtags; use xhsTopics");
-  if (!["immediate", "scheduled"].includes(pkg.xhsPublish?.mode)) errors.push("xhsPublish.mode must be immediate or scheduled");
-  if (pkg.xhsPublish?.mode === "scheduled" && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(pkg.xhsPublish.publishAt || "")) {
-    errors.push("xhsPublish.publishAt must use YYYY-MM-DD HH:mm when scheduled");
-  }
+  errors.push(...validatePublishTiming(pkg.xhsPublish, 'xhsPublish'));
   return errors;
 }
 
@@ -286,12 +301,7 @@ export function validateWechatChannelsPackage(pkg) {
   if (shortTitleLength(pkg.wechatShortTitle) > WECHAT_SHORT_TITLE_TARGET) {
     errors.push(`wechatShortTitle exceeds the configured target of ${WECHAT_SHORT_TITLE_TARGET} characters`);
   }
-  if (!["immediate", "scheduled"].includes(pkg.wechatPublish?.mode)) {
-    errors.push("wechatPublish.mode must be immediate or scheduled");
-  }
-  if (pkg.wechatPublish?.mode === "scheduled" && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(pkg.wechatPublish.publishAt || "")) {
-    errors.push("wechatPublish.publishAt must use YYYY-MM-DD HH:mm when scheduled");
-  }
+  errors.push(...validatePublishTiming(pkg.wechatPublish, 'wechatPublish'));
   if (!["none", "product"].includes(pkg.wechatLink?.type)) {
     errors.push("wechatLink.type must be none or product");
   }

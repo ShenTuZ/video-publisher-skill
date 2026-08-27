@@ -118,6 +118,8 @@ finalButton
 safety
 ```
 
+Publish timing is never an untouched default-item gate. In every profile, the adapter must prove the package's exact immediate/scheduled state and, for scheduled videos, the exact requested timestamp. A missing or mismatched timing gate blocks `READY` and the separately authorized `publish` phase.
+
 A mutation result is not enough. The final `verify` phase must re-read the page and match stored cover receipts.
 
 The production runner also writes accepted cover receipts to an atomic per-job, per-platform schema-`2` checkpoint. Each checkpoint is bound to its platform, package fingerprint, and numeric task-space id. On restart, the orchestrator loads only exact matches, then performs the same fresh page verification. If Ego explicitly recreates a task space, clear both state receipts and the checkpoint even when the replacement recycles the same numeric id. Checkpoints are recovery evidence, not a substitute for `verify`.

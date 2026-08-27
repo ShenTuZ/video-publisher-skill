@@ -160,4 +160,5 @@ test("WeChat per-video controls are verified without touching location or collec
     .map(token => mutation.indexOf(token));
   assert.ok(order.every(index => index >= 0));
   assert.deepEqual(order, [...order].sort((a, b) => a - b), "WeChat mutations must follow the confirmed field order");
+  assert.doesNotMatch(mutation, /actions\.schedule=publishProfile==='fast'/, "fast mode must not skip per-video publish timing");
 });

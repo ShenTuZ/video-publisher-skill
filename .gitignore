@@ -1,5 +1,6 @@
 # Personal publishing inputs and generated job state
 video-package-*.json
+publish-*.json
 .video-publisher/
 v2-jobs/
 state/

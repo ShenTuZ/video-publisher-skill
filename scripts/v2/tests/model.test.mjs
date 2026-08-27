@@ -65,11 +65,21 @@ test("READY rejects any attempted final-publish interaction even when it was blo
   assert.deepEqual(verdict.missing, ["safety"]);
 });
 
-test("fast profile ignores untouched default-item gates but keeps publish safety", () => {
+test("fast profile ignores untouched default-item gates but keeps the timing gate", () => {
   const input = observation("douyin", {
-    gates: Object.fromEntries(["settings", "defaults", "visibility", "download", "schedule", "cover"]
+    gates: Object.fromEntries(["settings", "defaults", "visibility", "download", "cover"]
       .map(name => [name, { ok: false, evidence: {} }])),
   });
   input.publishProfile = "fast";
   assert.equal(evaluateObservation(input).ready, true);
+});
+
+test("fast profile blocks publication when any platform timing differs from its package", () => {
+  for (const platform of ["xiaohongshu", "douyin", "wechat_channels"]) {
+    const input = observation(platform, { gates: { schedule: { ok: false, evidence: { expected: { mode: "scheduled", publishAt: "2026-08-27 20:00" }, actual: { mode: "immediate" } } } } });
+    input.publishProfile = "fast";
+    const verdict = evaluateObservation(input);
+    assert.equal(verdict.ready, false, platform);
+    assert.deepEqual(verdict.missing, ["schedule"], platform);
+  }
 });

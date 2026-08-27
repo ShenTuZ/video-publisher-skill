@@ -294,7 +294,7 @@ async function prefillDouyin() {
   if(!metadata.ok)return {...(await inspectDouyin()),actions:metadata.actions,blocker:typedBlocker('ACTION_FAILED',metadata.reason,{evidence:metadata})};
   const declaration=await ensureDouyinDeclaration();
   if(!declaration.ok)return {...(await inspectDouyin()),actions:{...metadata.actions,declaration},blocker:typedBlocker('ACTION_FAILED',declaration.reason,{evidence:declaration})};
-  const settings=publishProfile==='fast'&&douyinPublish.mode==='immediate'?{ok:true,skipped:true}:await ensureDouyinPublishSettings();
+  const settings=publishProfile==='fast'?await ensureDouyinSchedule():await ensureDouyinPublishSettings();
   if(!settings.ok)return {...(await inspectDouyin()),actions:{...metadata.actions,declaration,settings},blocker:typedBlocker('SELECTOR_DRIFT',settings.reason,{evidence:settings})};
   const sync=publishProfile==='fast'?{ok:true,skipped:true}:await turnOffDouyinSync();
   if(!sync.ok)return {...(await inspectDouyin()),actions:{...metadata.actions,settings,sync},blocker:typedBlocker('SELECTOR_DRIFT',sync.reason,{evidence:sync})};
@@ -520,7 +520,7 @@ async function mutateDouyin() {
   if(!metadata.ok)return {...(await inspectDouyin()),actions,blocker:typedBlocker('ACTION_FAILED',metadata.reason,{evidence:metadata})};
   actions.declaration=await ensureDouyinDeclaration();
   if(!actions.declaration.ok)return {...(await inspectDouyin()),actions,blocker:typedBlocker('ACTION_FAILED',actions.declaration.reason,{evidence:actions.declaration})};
-  actions.publishSettings=publishProfile==='fast'&&douyinPublish.mode==='immediate'?{ok:true,skipped:true}:await ensureDouyinPublishSettings();
+  actions.publishSettings=publishProfile==='fast'?await ensureDouyinSchedule():await ensureDouyinPublishSettings();
   if(!actions.publishSettings.ok)return {...(await inspectDouyin()),actions,blocker:typedBlocker('SELECTOR_DRIFT',actions.publishSettings.reason,{evidence:actions.publishSettings})};
   actions.settings = publishProfile==='fast'?{ok:true,skipped:true}:await turnOffDouyinSync();
   if (!actions.settings.ok) return { ...(await inspectDouyin()), blocker: typedBlocker('SELECTOR_DRIFT', actions.settings.reason) };
@@ -577,7 +577,7 @@ async function probeDouyinPublishResult(){return await js(String.raw`(() => {con
 
 async function publishDouyin(){
   const before=await inspectDouyin();
-  const required=publishProfile==='fast'?['authenticated','draftIdentity','video','title','description','tags','aiLabel','noBlockingDialog','finalButton']:Object.keys(before.gates);
+  const required=publishProfile==='fast'?['authenticated','draftIdentity','video','title','description','tags','aiLabel','schedule','noBlockingDialog','finalButton']:Object.keys(before.gates);
   const missing=required.filter(name=>before.gates[name]?.ok!==true);
   if(missing.length)return {...before,blocker:typedBlocker('STATE_AMBIGUOUS','抖音没有通过发布前全部页面条件',{evidence:{missing}})};
   const authorization=await authorizeFinalPublishGuard();

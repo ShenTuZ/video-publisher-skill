@@ -31,6 +31,8 @@ wechat_channels
 
 Validation checks the local video path, title limits, required platform fields, package-supplied Douyin topics, WeChat short title/publish mode/link intent/AI decision, and any requested cover paths and ratios. For MP4/M4V/MOV it reports duration from ISO BMFF metadata without `ffprobe`; Douyin content above the real-tested 900-second boundary, plus a maximum 0.1-second allowance for container rounding, fails with `DOUYIN_DURATION_LIMIT` before browser work. In a mixed-platform production run, the orchestrator records the invalid platform as `PLATFORM_REJECTED_ASSET` and continues every other platform that passed preflight.
 
+Scheduled package times must be real local datetimes strictly later than the host's current time. A past or impossible calendar time is rejected before any creator page opens.
+
 ## Production Orchestrator
 
 ```bash
