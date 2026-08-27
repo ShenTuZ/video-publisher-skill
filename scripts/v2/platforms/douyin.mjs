@@ -581,7 +581,8 @@ async function probeDouyinPublishResult(){return await js(String.raw`(() => {con
 
 async function publishDouyin(){
   const before=await inspectDouyin();
-  const required=publishProfile==='fast'?['authenticated','draftIdentity','video','title','description','tags','aiLabel','schedule','noBlockingDialog','finalButton']:Object.keys(before.gates);
+  const uploadInProgress=before.gates.video.ok!==true&&before.gates.video.evidence?.uploading===true&&before.gates.video.evidence?.failed!==true;
+  const required=(publishProfile==='fast'?['authenticated','draftIdentity','video','title','description','tags','aiLabel','schedule','noBlockingDialog','finalButton']:Object.keys(before.gates)).filter(name=>!(uploadInProgress&&name==='video'));
   const missing=required.filter(name=>before.gates[name]?.ok!==true);
   if(missing.length)return {...before,blocker:typedBlocker('STATE_AMBIGUOUS','抖音没有通过发布前全部页面条件',{evidence:{missing}})};
   const authorization=await authorizeFinalPublishGuard();
@@ -591,7 +592,7 @@ async function publishDouyin(){
   await click([target.x,target.y],{label:'publish verified Douyin video'});let confirmationClicked=false;
   for(let attempt=0;attempt<30;attempt+=1){
     await wait(.5);const probe=await probeDouyinPublishResult();
-    if(probe.confirmed)return {...before,published:true,finalPublishClicked:true,publishReceipt:{confirmed:true,confirmationClicked,signals:probe.signals,url:probe.url,at:new Date().toISOString()}};
+    if(probe.confirmed)return {...before,published:true,finalPublishClicked:true,publishReceipt:{confirmed:true,confirmationClicked,submittedWhileUploading:uploadInProgress,signals:probe.signals,url:probe.url,at:new Date().toISOString()}};
     if(probe.errors.length)return {...before,finalPublishClicked:true,blocker:typedBlocker('ACTION_FAILED','抖音返回发布失败',{evidence:probe})};
     if(!confirmationClicked){const dialog=probe.dialogs.find(item=>/发布|提交|确认/.test(item.text));const button=dialog?.buttons.find(item=>/^(确认|确定|发布|确认发布|提交)$/.test(item.text)&&!item.disabled);if(button){await click([button.x,button.y],{label:'confirm Douyin publish'});confirmationClicked=true}}
   }

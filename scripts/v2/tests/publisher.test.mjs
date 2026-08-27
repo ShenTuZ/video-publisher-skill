@@ -99,6 +99,28 @@ test("publisher serializes two health inspections before the first upload inject
   assert.ok(lastInspectEnd<=firstInjectStart,{lastInspectEnd,firstInjectStart});
 });
 
+test("Douyin is prefilled and submitted before sibling uploads complete", async () => {
+  const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-douyin-early-submit-test-"));
+  const log=path.join(root,"events.ndjson");
+  const videoPath=path.join(root,"sample-video.mp4");
+  const packagePath=path.join(root,"package.json");
+  const configPath=path.join(root,"config.json");
+  await fs.promises.writeFile(videoPath,"test video fixture");
+  await fs.promises.writeFile(configPath,JSON.stringify({schemaVersion:2,onboarding:{completed:true},sourceDirectory:root,availablePlatforms:["xiaohongshu","douyin","wechat_channels"],defaultPlatforms:["xiaohongshu","douyin","wechat_channels"],execution:{checkConcurrency:3,uploadConcurrency:3,autoPublishOnReady:true}}));
+  await fs.promises.writeFile(packagePath,JSON.stringify({videoPath,title:"Early submit",xhsTopics:["Test"],douyinTopics:["Test"],wechatDescription:"Early submit\n\n#Test",wechatShortTitle:"Early submit",wechatTags:["Test"],wechatLink:{type:"none"},cover:{uploadCustomCover:false}}));
+  const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"early-submit","xiaohongshu","douyin","wechat_channels","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
+  assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
+  const events=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line));
+  const starts=events.filter(item=>item.event==="start");
+  const prefillOrder=starts.filter(item=>item.phase==="prefill").map(item=>item.platform);
+  assert.deepEqual(prefillOrder,["douyin","xiaohongshu","wechat_channels"]);
+  const douyinPrefillEnd=events.find(item=>item.event==="end"&&item.platform==="douyin"&&item.phase==="prefill").at;
+  const douyinPublishStart=starts.find(item=>item.platform==="douyin"&&item.phase==="publish").at;
+  const xhsPrefillStart=starts.find(item=>item.platform==="xiaohongshu"&&item.phase==="prefill").at;
+  assert.ok(douyinPublishStart>=douyinPrefillEnd&&douyinPublishStart<xhsPrefillStart,{douyinPrefillEnd,douyinPublishStart,xhsPrefillStart});
+  assert.equal(starts.some(item=>item.platform==="douyin"&&item.phase==="wait_upload"),false,"submitted Douyin must not wait before other form work continues");
+});
+
 test("fast wrapper retries the same job once after a shared Ego channel failure", async () => {
   const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-wrapper-recovery-test-"));
   const videoPath=path.join(root,"sample-video.mp4");
@@ -302,7 +324,7 @@ test("configured automatic publishing includes the live-accepted Douyin flow", a
   const result=await run(process.execPath,[path.join(V2_DIR,"publisher.mjs"),packagePath,"douyin-auto","douyin","--state-root",root],{env:{...process.env,VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_MOCK_LOG:log}});
   assert.equal(result.code,0,`${result.stderr}\n${result.stdout}`);
   const events=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line));
-  assert.deepEqual(events.filter(item=>item.event==="start").map(item=>item.phase),["inspect","inspect","inject","prefill","wait_upload","mutate","publish"]);
+  assert.deepEqual(events.filter(item=>item.event==="start").map(item=>item.phase),["inspect","inspect","inject","prefill","publish"]);
   assert.equal(JSON.parse(result.stdout).platforms.douyin.published,true);
 });
 

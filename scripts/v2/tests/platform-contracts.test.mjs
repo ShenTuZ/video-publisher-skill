@@ -66,6 +66,8 @@ test("Douyin preserves committed topic entities while retrying a failed tail que
   assert.match(source, /input\.click\(\)/, 'scheduled publish must use the native checkbox control');
   assert.match(source, /日期和时间/);
   assert.match(source, /commit Douyin scheduled time/);
+  assert.match(source, /uploadInProgress/);
+  assert.match(source, /submittedWhileUploading/);
   assert.match(source, /officialActivity:activityEntities\.length===0/);
   assert.match(source, /controlPresent:state\.syncFound/);
   assert.match(source, /内容由AI生成/);

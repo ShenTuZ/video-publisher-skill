@@ -24,6 +24,7 @@ const DEFAULT_ROOT = path.join(os.homedir(), ".video-publisher", "v2-jobs");
 const FAST_OVERLAP_PLATFORMS = new Set(["xiaohongshu", "douyin", "wechat_channels"]);
 const AUTO_PUBLISH_PLATFORMS = new Set(["xiaohongshu", "douyin", "wechat_channels"]);
 const HEALTH_CHECK_CONCURRENCY = 1;
+const PREFILL_PLATFORM_ORDER = ["douyin", "xiaohongshu", "wechat_channels"];
 const validators = { xiaohongshu: validateXiaohongshuPackage, douyin: validateDouyinPackage, wechat_channels: validateWechatChannelsPackage };
 
 class UsageError extends Error {}
@@ -339,11 +340,16 @@ async function main() {
   console.error(`[video-publisher-v2] fast inject parallel=${injectConcurrency}: ${injectTargets.join(",") || "none"}`);
   await runPool(injectTargets, injectConcurrency, platform => invoke(platform, "inject"));
 
-  const overlapPrefillTargets = inputChannelBroken ? [] : injectTargets.filter(platform => state.platforms[platform].status === "needs_upload");
+  const overlapPrefillTargets = inputChannelBroken ? [] : injectTargets.filter(platform => state.platforms[platform].status === "needs_upload")
+    .sort((left, right) => PREFILL_PLATFORM_ORDER.indexOf(left) - PREFILL_PLATFORM_ORDER.indexOf(right));
   console.error(`[video-publisher-v2] overlap prefill UI serial: ${overlapPrefillTargets.join(",") || "none"}${inputChannelBroken ? " (input channel broken)" : ""}`);
   for (const platform of overlapPrefillTargets) {
     if (inputChannelBroken) break;
     await ui.enqueue(() => invoke(platform, "prefill"));
+    if (platform === "douyin" && args.autoPublishOnReady && state.platforms.douyin.status === "needs_upload") {
+      console.error("[video-publisher-v2] Douyin upload is active and its form is complete; submit before upload completion");
+      await ui.enqueue(() => invoke("douyin", "publish"));
+    }
   }
   await ui.idle();
 

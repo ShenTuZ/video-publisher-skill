@@ -48,6 +48,10 @@ Some creator accounts do not expose a simultaneous-publication control. Fresh li
 
 For scheduled publishing, the current page exposes `定时发布` as a styled label around a native checkbox. Toggle the native checkbox, wait for the `日期和时间` input, clear its selected value through keyboard input, enter the exact package timestamp, then click the `发布时间` heading to commit and inspect the resulting scheduled state. A label click alone is not accepted as proof because the current control can ignore it.
 
+## Early Upload Submission
+
+Douyin may accept an authorized final submit while its own target video is still uploading. The multi-platform runner fills Douyin first and uses this exception only when page evidence shows active upload, no upload failure, exact title/body/topic entities, the requested AI declaration, exact publish timing, no blocking dialog, and an enabled final button. The final phase still requires confirmed platform success/submission evidence; a click without confirmation remains blocked. Do not apply this exception to Xiaohongshu or WeChat Channels.
+
 Unless a package explicitly requests a scheduled time, keep the platform cover, leave official activities, collection, autonomous declaration, chapters, location, and hot topics unset, and verify `公开`, `允许`, and `立即发布`. The adapter may prefill title, prose, topic entities, and these normal controls while the upload continues. A scheduled package uses `douyinPublish: { "mode": "scheduled", "publishAt": "YYYY-MM-DD HH:mm" }`; do not infer a time from the video.
 
 `douyinAiGenerated: true` maps only to the exact menu item `内容由AI生成`; fresh main-page evidence must expose that value. The observed menu is single-select and has no original-content option. Originality is not a Douyin package field and must never be mapped to `内容为个人观点或见解`.
