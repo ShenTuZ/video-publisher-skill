@@ -71,6 +71,10 @@ function runEgo(script, timeoutMs) {
 }
 
 const rawArgs = process.argv.slice(2);
+if (process.platform !== "darwin") {
+  console.error("Video Publisher requires macOS because Ego Lite currently supports macOS only.");
+  process.exit(2);
+}
 const originalRightsConfirmed = rawArgs.includes("--confirm-original-rights");
 const finalPublishAuthorized = rawArgs.includes("--confirm-final-publish");
 const positional = rawArgs.filter(arg => !["--confirm-original-rights", "--confirm-final-publish"].includes(arg));

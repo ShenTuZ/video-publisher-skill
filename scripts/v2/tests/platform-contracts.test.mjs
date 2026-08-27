@@ -7,6 +7,15 @@ import { fileURLToPath } from "node:url";
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const PLATFORM_DIR = path.join(DIR, "..", "platforms");
 
+test("production runners require macOS for Ego Lite", () => {
+  const publisher = fs.readFileSync(path.join(DIR, "..", "publisher.mjs"), "utf8");
+  const runner = fs.readFileSync(path.join(DIR, "..", "run-platform.mjs"), "utf8");
+  assert.match(publisher, /process\.platform !== "darwin"/);
+  assert.match(publisher, /Ego Lite currently supports macOS only/);
+  assert.match(runner, /process\.platform !== "darwin"/);
+  assert.match(runner, /Ego Lite currently supports macOS only/);
+});
+
 test("Xiaohongshu topics start through the native editor command", () => {
   const source = fs.readFileSync(path.join(PLATFORM_DIR, "xiaohongshu.mjs"), "utf8");
   const start = source.indexOf("async function rebuildXhsTopics");

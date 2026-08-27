@@ -122,6 +122,9 @@ function initialState(jobId, identity, args) {
 }
 
 async function main() {
+  if (process.platform !== "darwin") {
+    throw new UsageError("Video Publisher requires macOS because Ego Lite currently supports macOS only.");
+  }
   const args = parseArgs(process.argv.slice(2));
   if (!fs.existsSync(args.packagePath)) throw new Error(`Package JSON not found: ${args.packagePath}`);
   const pkg = readPackage(args.packagePath);

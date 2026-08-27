@@ -5,7 +5,7 @@ description: Prepare and automate video drafts for Xiaohongshu, Douyin, and WeCh
 
 # Video Publisher
 
-Prepare one confirmed video package and drive selected creator platforms to a verified draft state. Use Ego Lite for all live creator-page work.
+Prepare one confirmed video package and drive selected creator platforms to a verified draft state. Use Ego Lite for all live creator-page work. Ego Lite currently supports macOS only; on another operating system, stop before configuration, file inspection, or browser work and explain the host requirement.
 
 ## Configuration And Onboarding
 
