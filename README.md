@@ -26,7 +26,7 @@
 
 ```text
 请安装这个 Skill：
-https://github.com/ShenTuZ/video-publisher-skill/tree/v1.0.3
+https://github.com/ShenTuZ/video-publisher-skill
 ```
 
 安装后在下一轮对话中使用 `$video-publisher`。首次运行会询问你实际拥有的平台、默认平台和视频目录。
