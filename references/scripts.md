@@ -4,7 +4,7 @@ All paths below are relative to the skill directory.
 
 ## Host Requirement
 
-This Skill requires macOS. It uses Ego Lite rather than a generic local-browser controller, and Ego Lite currently supports macOS only. Windows and Linux hosts stop before creator-page or local-file work.
+This Skill requires macOS. It uses Ego Lite rather than a generic local-browser controller, and Ego Lite currently supports macOS only. Download the Mac version from https://lite.ego.app/ and complete its onboarding before first use. Windows and Linux hosts stop before creator-page or local-file work.
 
 ## Configuration
 

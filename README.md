@@ -14,7 +14,7 @@
 
 ## 使用前准备
 
-- macOS 设备与 Codex；本项目通过 Ego Lite 控制发布页面，当前不支持 Windows 或 Linux。
+- macOS 设备与 Codex；先从 [Ego Lite 官网下载 Mac 版](https://lite.ego.app/)，完成首次引导后再使用本 Skill。项目通过 Ego Lite 控制发布页面，当前不支持 Windows 或 Linux。
 - 已登录自己拥有的小红书、抖音或视频号创作者账号；不使用通用“本地浏览器”控制方式。
 - 已登录自己拥有的小红书、抖音或视频号创作者账号。
 - 视频文件在本机，并拥有发布素材、原创声明和商品链接所需的权利。
