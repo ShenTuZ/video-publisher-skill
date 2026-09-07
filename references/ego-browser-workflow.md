@@ -10,7 +10,7 @@ Use one persistent task space per platform. Store both its numeric id and its ex
 await useOrCreateTaskSpace(taskSpaceId)
 ```
 
-Do not call `completeTaskSpace` during upload, mutation, or verification. Leave a ready draft visible unless the user explicitly ends that platform step.
+Do not call `completeTaskSpace` during upload, mutation, or verification. Leave a ready draft visible unless the user explicitly ends that platform step. Once every selected platform has formal publication success, the orchestrator owns a verified serial close step for every persisted platform task space; it must not run for a `READY`, blocked, or user-action state.
 
 If Ego says the user took control, stop. After the user explicitly says to continue:
 

@@ -11,7 +11,15 @@ const V2_DIR = path.dirname(DIR);
 
 function run(command, args, options) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { ...options, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(command, args, {
+      ...options,
+      env: {
+        ...process.env,
+        VIDEO_PUBLISHER_V2_TASK_SPACE_CLEANER: path.join(DIR, "mock-task-space-cleaner.mjs"),
+        ...(options?.env || {}),
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     let stdout="",stderr="";
     child.stdout.on("data",chunk=>{stdout+=chunk}); child.stderr.on("data",chunk=>{stderr+=chunk});
     child.on("error",reject); child.on("close",code=>resolve({code,stdout,stderr}));
@@ -328,6 +336,28 @@ test("configured automatic publishing includes the live-accepted Douyin flow", a
   const events=(await fs.promises.readFile(log,"utf8")).trim().split(/\n/).map(line=>JSON.parse(line));
   assert.deepEqual(events.filter(item=>item.event==="start").map(item=>item.phase),["inspect","inspect","inject","prefill","publish"]);
   assert.equal(JSON.parse(result.stdout).platforms.douyin.published,true);
+});
+
+test("a fully published regular job closes persisted task spaces once and records the closure", async () => {
+  const root=await fs.promises.mkdtemp(path.join(os.tmpdir(),"video-publisher-v2-regular-close-test-"));
+  const videoPath=path.join(root,"sample-video.mp4");
+  const packagePath=path.join(root,"package.json");
+  const configPath=path.join(root,"config.json");
+  const closeLog=path.join(root,"closed-task-spaces.ndjson");
+  await fs.promises.writeFile(videoPath,"test video fixture");
+  await fs.promises.writeFile(configPath,JSON.stringify({schemaVersion:2,onboarding:{completed:true},sourceDirectory:root,availablePlatforms:["xiaohongshu"],defaultPlatforms:["xiaohongshu"],execution:{checkConcurrency:1,uploadConcurrency:1,autoPublishOnReady:true}}));
+  await fs.promises.writeFile(packagePath,JSON.stringify({videoPath,title:"Close task space",xhsTopics:["Test"],cover:{uploadCustomCover:false}}));
+  const args=[path.join(V2_DIR,"publisher.mjs"),packagePath,"regular-close","xiaohongshu","--state-root",root];
+  const env={VIDEO_PUBLISHER_CONFIG:configPath,VIDEO_PUBLISHER_V2_RUNNER:path.join(DIR,"mock-runner.mjs"),VIDEO_PUBLISHER_V2_TASK_SPACE_CLEANER:path.join(DIR,"mock-task-space-cleaner.mjs"),VIDEO_PUBLISHER_V2_MOCK_CLEANER_LOG:closeLog};
+  const first=await run(process.execPath,args,{env});
+  assert.equal(first.code,0,`${first.stderr}\n${first.stdout}`);
+  const firstSummary=JSON.parse(first.stdout);
+  assert.equal(firstSummary.platforms.xiaohongshu.taskSpaceClosed.taskSpaceId,11);
+  assert.equal((await fs.promises.readFile(closeLog,"utf8")).trim().split("\n").map(JSON.parse).length,1);
+  const retry=await run(process.execPath,args,{env});
+  assert.equal(retry.code,0,`${retry.stderr}\n${retry.stdout}`);
+  assert.equal((await fs.promises.readFile(closeLog,"utf8")).trim().split("\n").map(JSON.parse).length,1,"a completed cleanup must be a no-op on retry");
+  await fs.promises.rm(root,{recursive:true,force:true});
 });
 
 test("a retry never re-enters a platform that already published", async () => {

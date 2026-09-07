@@ -104,6 +104,43 @@ function runCapture(command, args, options = {}) {
   });
 }
 
+async function closePublishedTaskSpaces(state, platforms) {
+  const closerPath = path.resolve(process.env.VIDEO_PUBLISHER_V2_TASK_SPACE_CLEANER || path.join(DIR, "close-task-space.mjs"));
+  for (const platform of platforms) {
+    const item = state.platforms[platform];
+    if (!Number.isInteger(Number(item.taskSpaceId)) || Number(item.taskSpaceId) < 1) {
+      throw new Error(`Cannot clean published ${platform} task space: its numeric id is missing`);
+    }
+    if (!item.taskSpaceName) {
+      throw new Error(`Cannot clean published ${platform} task space: its exact stable name is missing`);
+    }
+    const previousClosure = item.taskSpaceClosed;
+    if (previousClosure
+      && Number(previousClosure.taskSpaceId) === Number(item.taskSpaceId)
+      && previousClosure.taskSpaceName === item.taskSpaceName) continue;
+    const execution = await runCapture(process.execPath, [closerPath, String(item.taskSpaceId), item.taskSpaceName]);
+    if (execution.code !== 0) {
+      throw new Error(`Cannot clean published ${platform} task space: ${(execution.stderr || execution.stdout || "unknown cleanup error").trim()}`);
+    }
+    item.taskSpaceClosed = {
+      taskSpaceId: Number(item.taskSpaceId),
+      taskSpaceName: item.taskSpaceName,
+      closedAt: new Date().toISOString(),
+    };
+  }
+}
+
+async function finishRun({ state, args, store }) {
+  await store.save();
+  const everySelectedPlatformPublished = !args.inspectOnly
+    && args.platforms.every(platform => state.platforms[platform].status === "published");
+  if (everySelectedPlatformPublished) {
+    await closePublishedTaskSpaces(state, args.platforms);
+    await store.save();
+  }
+  await store.close();
+}
+
 function initialState(jobId, identity, args) {
   return {
     schemaVersion: 3,
@@ -283,7 +320,7 @@ async function main() {
   }
   if (!args.inspectOnly && args.platforms.every(platform => state.platforms[platform].status === "published")) {
     state.status = "published";
-    await store.save(); await store.close();
+    await finishRun({ state, args, store });
     console.log(JSON.stringify(summary(state, args.platforms, store.statePath), null, 2));
     return;
   }
@@ -316,7 +353,7 @@ async function main() {
   const userBlocked = activePlatforms().find(platform => state.platforms[platform].status === "blocked_user");
   if (userBlocked) {
     state.status = "paused_user";
-    await store.save(); await store.close();
+    await finishRun({ state, args, store });
     console.log(JSON.stringify(summary(state, args.platforms, store.statePath), null, 2));
     process.exitCode = 10; return;
   }
@@ -336,7 +373,7 @@ async function main() {
       complete = state.platforms[platform].status === "published";
     }
     state.status = state.platforms[platform].status === "published" ? "published" : (complete ? "ready" : (state.platforms[platform].status === "blocked_user" ? "paused_user" : "blocked"));
-    await store.save(); await store.close();
+    await finishRun({ state, args, store });
     console.log(JSON.stringify(summary(state, args.platforms, store.statePath), null, 2));
     if (!complete) process.exitCode = 10;
     return;
@@ -412,7 +449,7 @@ async function main() {
   let complete = args.platforms.every(platform => state.platforms[platform].status === "published" || state.platforms[platform].verdict?.ready === true);
   if (args.autoPublishOnReady) complete = args.platforms.every(platform => state.platforms[platform].status === "published");
   state.status = args.platforms.every(platform => state.platforms[platform].status === "published") ? "published" : (complete ? "ready" : "blocked");
-  await store.save(); await store.close();
+  await finishRun({ state, args, store });
   console.log(JSON.stringify(summary(state, args.platforms, store.statePath), null, 2));
   if (!complete) process.exitCode = 10;
 }
@@ -427,7 +464,7 @@ function summary(state, platforms, statePath) {
     scheduler: state.scheduler,
     platforms: Object.fromEntries(platforms.map(platform => {
       const item = state.platforms[platform];
-      return [platform, { status: item.status, taskSpaceId: item.taskSpaceId, ready: item.verdict?.ready === true, published: item.status === "published" || item.verdict?.published === true, missing: item.verdict?.missing || [], blocker: item.verdict?.blocker || null, evidencePath: item.lastEvidencePath || null }];
+      return [platform, { status: item.status, taskSpaceId: item.taskSpaceId, taskSpaceClosed: item.taskSpaceClosed || null, ready: item.verdict?.ready === true, published: item.status === "published" || item.verdict?.published === true, missing: item.verdict?.missing || [], blocker: item.verdict?.blocker || null, evidencePath: item.lastEvidencePath || null }];
     })),
   };
 }

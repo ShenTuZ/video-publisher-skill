@@ -67,7 +67,7 @@ Each persisted phase history may include backward-compatible `timing` evidence w
 - Use `ego-browser`; do not fall back to Chrome control.
 - Verify exact local video and cover paths before opening creator pages.
 - Reuse a draft only when its identity matches the package.
-- Close task spaces after confirmed formal publication; leave them open only for a user-requested reviewable draft or required human action.
+- After every selected platform has confirmed formal publication, close each exact persisted Ego Lite task space and verify it no longer exists before returning success. Persist the closure receipt so a retry is a no-op. Leave task spaces open for reviewable `READY` drafts, blocked runs, or required human action.
 - If Ego reports user takeover, stop all browser work and resume only after explicit confirmation.
 
 Read `references/ego-browser-workflow.md` before browser diagnosis or adapter changes.
@@ -170,7 +170,7 @@ Generate a meaningful WeChat short-title summary of at most 10 Unicode character
 9. Wait for upload completion in parallel without further input, then repair remaining post-upload fields and covers.
 10. In fast mode, publish each READY platform immediately; run a full independent verification only under `--strict`.
 11. On a shared Ego input-channel failure, retry only the same persisted job with bounded 5-second, 10-second, and 30-second backoff; stop after that limit.
-12. After confirmed formal publication, close the isolated task spaces unless the user asked to review the live page. Stop at READY only when the user explicitly requests a draft/reviewable run.
+12. Once every selected platform has confirmed formal publication, serially close all of that job's exact persisted Ego Lite task spaces, independently verify that each is gone, and persist the closure receipts. Do not close task spaces for reviewable `READY` drafts, blocked runs, or required human action.
 
 Read-only inspection:
 
